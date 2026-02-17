@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Polymarket Scanner – opportunità (CORS-safe)</title>
+  <title>Polymarket Scanner – opportunità (CORS proxy)</title>
   <style>
     :root{color-scheme:light dark;--b:1px solid rgba(127,127,127,.35);--bg:rgba(127,127,127,.08);--ok:#1b8a3b;--bad:#c92a2a;--mut:#666}
     body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;padding:14px}
@@ -35,21 +35,21 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>Polymarket Scanner – opportunità (CORS-safe)</h1>
+    <h1>Polymarket Scanner – opportunità (con CORS proxy)</h1>
 
     <div class="grid">
       <label>
         Modalità chiamate
         <select id="mode">
-          <option value="auto" selected>Auto (consigliato)</option>
+          <option value="auto" selected>Auto (diretta → fallback proxy)</option>
           <option value="direct">Diretta (senza proxy)</option>
-          <option value="proxy">Proxy (se serve per CORS)</option>
+          <option value="proxy">Sempre proxy</option>
         </select>
       </label>
 
       <label>
-        Proxy base (opzionale)
-        <input id="proxy" placeholder="https://TUO-WORKER.workers.dev/?url=" />
+        Proxy base
+        <input id="proxy" value="https://corsproxy.io/?" />
       </label>
 
       <label>
@@ -104,11 +104,8 @@
     <div id="log" class="log"></div>
 
     <div class="hint">
-      <div><span class="pill">Nota</span> Se apri questo file da telefono come <span class="mono">file://</span>, il browser può bloccare le API con CORS e darti “Failed to fetch”.</div>
-      <div class="small" style="margin-top:6px">
-        Per test “senza proxy” sul telefono, spesso serve aprire l’HTML via HTTP (es. localhost) oppure metterlo su hosting.
-        In ogni caso puoi provare anche in modalità Diretta.
-      </div>
+      <div><span class="pill">Nota</span> Questo file prova in diretta e, se il browser blocca per CORS, ritenta automaticamente via proxy.</div>
+      <div class="small" style="margin-top:6px">Se vuoi una soluzione stabile al 100%, sostituisci il proxy con un tuo Cloudflare Worker (consigliato). I proxy pubblici possono rate-limitare.</div>
     </div>
 
     <table id="tbl">
@@ -136,9 +133,9 @@
     </details>
 
     <details>
-      <summary>Codice Cloudflare Worker (proxy CORS)</summary>
+      <summary>Worker Cloudflare (proxy definitivo)</summary>
       <div class="pad">
-        <div class="small">Crea un Worker, incolla questo codice, fai deploy e poi usa l’URL del worker come “Proxy base”, lasciando <span class="mono">?url=</span> alla fine.</div>
+        <div class="small">Crea un Worker, incolla questo codice, fai deploy e poi sostituisci “Proxy base” con l’URL del worker + <span class="mono">?url=</span>.</div>
         <pre class="mono" style="white-space:pre-wrap">export default {
   async fetch(request) {
     const url = new URL(request.url);
@@ -171,10 +168,10 @@
   </div>
 
 <script>
-  // --- Helpers ---
   const $ = (id) => document.getElementById(id);
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+
   const fmt = (x, d=2) => {
     const n = Number(x);
     if (!Number.isFinite(n)) return '';
@@ -191,6 +188,12 @@
     if (isNaN(d.getTime())) return String(v);
     return d.toISOString().slice(0,10);
   };
+
+  const BASE = {
+    gamma: 'https://gamma-api.polymarket.com',
+    data:  'https://data-api.polymarket.com'
+  };
+
   const marketUrl = (slug) => slug ? `https://polymarket.com/market/${slug}` : '';
 
   function log(msg, isErr=false){
@@ -208,57 +211,40 @@
     if (kind === 'bad') s.innerHTML = `<span class="bad">ERRORE</span> ${msg}`;
   }
 
-  // --- Networking with CORS modes ---
-  const BASE = {
-    gamma: 'https://gamma-api.polymarket.com',
-    data:  'https://data-api.polymarket.com',
-    clob:  'https://clob.polymarket.com'
-  };
-
   function getMode(){ return $('mode').value; }
+  function proxyBase(){ return ($('proxy').value || '').trim(); }
 
-  function proxyBase(){
-    const p = $('proxy').value.trim();
-    return p;
-  }
-
-  let warnedNoProxy = false;
-
-  function buildFetchUrl(url){
-    const mode = getMode();
+  function proxify(url){
     const p = proxyBase();
-
-    const origin = (location && location.origin) ? location.origin : '';
-    const inFile = origin === 'null' || location.protocol === 'file:';
-
-    if (mode === 'direct') return url;
-
-    if (mode === 'proxy') {
-      if (!p) throw new Error('Modalità Proxy selezionata ma Proxy base è vuoto.');
-      return p + encodeURIComponent(url);
-    }
-
-    // auto
-    if (inFile && p) return p + encodeURIComponent(url);
-
-    // auto + file:// senza proxy: proviamo comunque in diretta (potrebbe fallire per CORS)
-    if (inFile && !p && !warnedNoProxy){
-      warnedNoProxy = true;
-      log('Se sei in file:// senza proxy, le API possono fallire per CORS (origin null). Se vedi “Failed to fetch”, prova localhost/hosting oppure proxy.', true);
-    }
-    return url;
+    if (!p) throw new Error('Proxy base vuoto.');
+    return p + encodeURIComponent(url);
   }
 
   async function fetchJson(url, timeoutMs=20000){
-    const u = buildFetchUrl(url);
+    const mode = getMode();
     const ac = new AbortController();
     const t = setTimeout(() => ac.abort('timeout'), timeoutMs);
-    try{
-      log(`GET ${u}`);
+
+    async function doFetch(u, label){
+      log(`GET${label?` ${label}`:''} ${u}`);
       const res = await fetch(u, { method:'GET', headers:{'accept':'application/json'}, signal: ac.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-      const data = await res.json();
-      return data;
+      return res.json();
+    }
+
+    try{
+      if (mode === 'direct') return await doFetch(url, '(direct)');
+      if (mode === 'proxy') return await doFetch(proxify(url), '(proxy)');
+
+      // auto: direct -> proxy fallback
+      try{
+        return await doFetch(url, '(direct)');
+      } catch (e1){
+        const p = proxyBase();
+        if (!p) throw e1;
+        log(`Direct fallita (${e1?.message||e1}). Riprovo via proxy…`, true);
+        return await doFetch(proxify(url), '(proxy fallback)');
+      }
     } finally {
       clearTimeout(t);
     }
@@ -271,12 +257,10 @@
     return data;
   }
 
-  // --- Parsing market fields defensively ---
   function num(v){
     const n = Number(v);
     return Number.isFinite(n) ? n : null;
   }
-
   function firstFinite(...vals){
     for (const v of vals){
       const n = num(v);
@@ -290,25 +274,17 @@
       const idx = m.outcomes.findIndex(x => String(x).toLowerCase() === 'yes');
       if (idx >= 0) return firstFinite(m.outcomePrices[idx]);
     }
-    if (Array.isArray(m?.outcomes) && Array.isArray(m?.outcomesData)){
-      const y = m.outcomesData.find(o => String(o?.name||o?.outcome).toLowerCase()==='yes');
-      if (y) return firstFinite(y.price, y.lastPrice, y.bestBid, y.bestAsk);
-    }
     return firstFinite(m?.price, m?.lastPrice, m?.last_price, m?.yesPrice, m?.yes_price);
   }
-
   function getLiquidity(m){
     return firstFinite(m?.liquidity, m?.liquidityNum, m?.liquidity_num, m?.totalLiquidity, m?.total_liquidity);
   }
-
   function getVolume24h(m){
     return firstFinite(m?.volume24hr, m?.volume_24h, m?.volume24h, m?.volume, m?.dailyVolume, m?.daily_volume);
   }
-
   function getEnd(m){
     return m?.endDate || m?.end_date || m?.endTime || m?.end_time || null;
   }
-
   function daysUntil(dateStr){
     if (!dateStr) return null;
     const d = new Date(dateStr);
@@ -316,7 +292,6 @@
     return (d.getTime() - Date.now()) / (1000*60*60*24);
   }
 
-  // --- Core scan ---
   let lastResult = null;
   let running = false;
 
@@ -324,12 +299,11 @@
     $('test').disabled = true;
     try{
       setStatus('Test in corso…');
-      log('TEST connessione: Gamma /events?limit=1');
+
       const u1 = `${BASE.gamma}/events?closed=false&limit=1&offset=0`;
       const e = unwrap(await fetchJson(u1, 20000));
       log(`OK Gamma events: ${Array.isArray(e)?e.length:'(obj)'}`);
 
-      log('TEST connessione: Data /activity?user=0x00..&limit=1');
       const u2 = `${BASE.data}/activity?user=0x0000000000000000000000000000000000000001&limit=1&offset=0&sortBy=TIMESTAMP&sortDirection=DESC`;
       const a = unwrap(await fetchJson(u2, 20000));
       log(`OK Data activity: ${Array.isArray(a)?a.length:'(obj)'}`);
@@ -348,7 +322,6 @@
     running = true;
     $('scan').disabled = true;
     $('export').disabled = true;
-
     $('tbl').querySelector('tbody').innerHTML = `<tr><td colspan="7" style="opacity:.65">Scansione in corso…</td></tr>`;
 
     const cfg = {
@@ -379,11 +352,7 @@
       const all = [];
       for (let page=0; page<cfg.maxPages; page++){
         const offset = page*cfg.pageLimit;
-        const qs = new URLSearchParams({
-          closed: 'false',
-          limit: String(cfg.pageLimit),
-          offset: String(offset)
-        });
+        const qs = new URLSearchParams({ closed:'false', limit:String(cfg.pageLimit), offset:String(offset) });
         if (cfg.tagId) qs.set('tag_id', String(cfg.tagId));
 
         const url = `${BASE.gamma}/markets?${qs.toString()}`;
@@ -392,15 +361,12 @@
         const arr = Array.isArray(batch) ? batch : (Array.isArray(batch?.markets) ? batch.markets : []);
         debug.totals.marketsFetched += arr.length;
         log(`Pagina ${page+1}: ricevuti ${arr.length} markets`);
-
         if (!debug.sample && arr.length) debug.sample = arr[0];
-
         all.push(...arr);
         if (arr.length < cfg.pageLimit) break;
         await sleep(200);
       }
 
-      // Analyze
       const out = [];
       for (const m of all){
         debug.totals.marketsAnalyzed += 1;
@@ -438,11 +404,10 @@
       const top = out.slice(0, cfg.maxRes);
       debug.totals.passed = out.length;
 
-      // Render
       const tb = $('tbl').querySelector('tbody');
       tb.innerHTML = '';
       if (!top.length){
-        tb.innerHTML = `<tr><td colspan="7" style="opacity:.65">Nessuna opportunità trovata con i filtri attuali (oppure CORS blocca le API).</td></tr>`;
+        tb.innerHTML = `<tr><td colspan="7" style="opacity:.65">Nessuna opportunità trovata con i filtri attuali.</td></tr>`;
       } else {
         top.forEach((x,i)=>{
           const url = marketUrl(x.slug);
@@ -469,7 +434,7 @@
 
     } catch (err){
       log(`ERRORE scan: ${err?.message||err}`, true);
-      setStatus(`Errore connessione API: ${err?.message||err}`, 'bad');
+      setStatus(`Errore: ${err?.message||err}`, 'bad');
       $('debug').textContent = JSON.stringify({error:String(err?.message||err)}, null, 2);
       lastResult = null;
     } finally {
@@ -515,15 +480,7 @@
     downloadFile(fn, JSON.stringify(lastResult, null, 2));
   });
 
-  // Avviso se aperto come file://
-  try{
-    const inFile = (location.origin === 'null' || location.protocol === 'file:');
-    if (inFile){
-      log('Nota: stai aprendo in file://. Se vedi “Failed to fetch”, prova a servire la pagina via HTTP locale (localhost) o hosting.', true);
-    }
-  } catch {}
-
-  log('Script pronto. Premi “Test connessione” e poi “Scansiona mercati”.');
+  log('Pronto. Premi “Test connessione” e poi “Scansiona mercati”.');
 </script>
 </body>
 </html>
