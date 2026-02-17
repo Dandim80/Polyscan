@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Polymarket Scanner – opportunità (CORS-safe)</title>
+  <style>
+    :root{color-scheme:light dark;--b:1px solid rgba(127,127,127,.35);--bg:rgba(127,127,127,.08);--ok:#1b8a3b;--bad:#c92a2a;--mut:#666}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;padding:14px}
+    .wrap{max-width:1150px;margin:0 auto;border:var(--b);border-radius:14px;padding:14px;background:rgba(127,127,127,.02)}
+    h1{margin:0 0 10px 0;font-size:18px}
+    .grid{display:grid;grid-template-columns:1.2fr .7fr .7fr .7fr .7fr;gap:10px;align-items:end}
+    @media (max-width:980px){.grid{grid-template-columns:1fr 1fr}}
+    label{display:grid;gap:6px;font-size:13px;opacity:.95}
+    input,select,button{padding:10px;border-radius:10px;border:var(--b);font:inherit}
+    button{cursor:pointer}
+    button:disabled{opacity:.55;cursor:not-allowed}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:flex-end;margin-top:10px}
+    .status{margin-top:10px;padding:10px;border-radius:10px;background:var(--bg);font-size:13px}
+    .status .ok{color:var(--ok);font-weight:700}
+    .status .bad{color:var(--bad);font-weight:700}
+    .log{margin-top:10px;padding:10px;border-radius:10px;background:var(--bg);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;max-height:220px;overflow:auto}
+    .hint{margin-top:10px;padding:10px;border-radius:10px;background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.35);font-size:13px}
+    table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
+    th,td{border-top:var(--b);padding:8px;text-align:left;vertical-align:top}
+    th{position:sticky;top:0;background:rgba(127,127,127,.08);backdrop-filter:blur(6px)}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:var(--b);font-size:12px;opacity:.9}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+    .small{font-size:12px;color:var(--mut)}
+    details{margin-top:12px;border:var(--b);border-radius:12px;overflow:hidden}
+    summary{padding:10px;cursor:pointer;background:var(--bg)}
+    .pad{padding:10px}
+    a{color:inherit}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Polymarket Scanner – opportunità (CORS-safe)</h1>
+
+    <div class="grid">
+      <label>
+        Modalità chiamate
+        <select id="mode">
+          <option value="auto" selected>Auto (consigliato)</option>
+          <option value="direct">Diretta (senza proxy)</option>
+          <option value="proxy">Proxy (se serve per CORS)</option>
+        </select>
+      </label>
+
+      <label>
+        Proxy base (opzionale)
+        <input id="proxy" placeholder="https://TUO-WORKER.workers.dev/?url=" />
+      </label>
+
+      <label>
+        Max giorni a scadenza
+        <input id="maxDays" type="number" min="1" max="3650" value="365" />
+      </label>
+
+      <label>
+        Max risultati
+        <input id="maxRes" type="number" min="10" max="500" value="50" />
+      </label>
+
+      <label>
+        Max entry (prezzo YES)
+        <input id="maxEntry" type="number" min="0" max="1" step="0.001" value="0.10" />
+      </label>
+
+      <label>
+        Min liquidità
+        <input id="minLiq" type="number" min="0" step="1" value="500" />
+      </label>
+
+      <label>
+        Min volume 24h
+        <input id="minVol" type="number" min="0" step="1" value="50" />
+      </label>
+
+      <label>
+        Pagine (limit)
+        <input id="pageLimit" type="number" min="25" max="200" step="25" value="100" />
+      </label>
+
+      <label>
+        Max pagine
+        <input id="maxPages" type="number" min="1" max="50" value="8" />
+      </label>
+
+      <label>
+        Tag ID (opzionale)
+        <input id="tagId" type="number" min="0" step="1" placeholder="es. 100381" />
+      </label>
+    </div>
+
+    <div class="row">
+      <button id="test">Test connessione</button>
+      <button id="scan">Scansiona mercati</button>
+      <button id="export" disabled>Export JSON</button>
+      <button id="reset">Reset</button>
+    </div>
+
+    <div id="status" class="status">Pronto.</div>
+    <div id="log" class="log"></div>
+
+    <div class="hint">
+      <div><span class="pill">Nota</span> Se apri questo file da telefono come <span class="mono">file://</span>, il browser può bloccare le API con CORS e darti “Failed to fetch”.</div>
+      <div class="small" style="margin-top:6px">
+        Per test “senza proxy” sul telefono, spesso serve aprire l’HTML via HTTP (es. localhost) oppure metterlo su hosting.
+        In ogni caso puoi provare anche in modalità Diretta.
+      </div>
+    </div>
+
+    <table id="tbl">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Market</th>
+          <th>YES</th>
+          <th>Liq</th>
+          <th>Vol 24h</th>
+          <th>Scade</th>
+          <th>Link</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="7" style="opacity:.65">Nessun dato.</td></tr>
+      </tbody>
+    </table>
+
+    <details>
+      <summary>Debug (ultimo run)</summary>
+      <div class="pad">
+        <pre id="debug" class="mono" style="margin:0;white-space:pre-wrap">—</pre>
+      </div>
+    </details>
+
+    <details>
+      <summary>Codice Cloudflare Worker (proxy CORS)</summary>
+      <div class="pad">
+        <div class="small">Crea un Worker, incolla questo codice, fai deploy e poi usa l’URL del worker come “Proxy base”, lasciando <span class="mono">?url=</span> alla fine.</div>
+        <pre class="mono" style="white-space:pre-wrap">export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+    const target = url.searchParams.get("url");
+    if (!target) return new Response("Missing ?url=", { status: 400 });
+
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "access-control-allow-origin": "*",
+          "access-control-allow-methods": "GET,OPTIONS",
+          "access-control-allow-headers": "Content-Type,Accept"
+        }
+      });
+    }
+
+    const res = await fetch(target, { headers: { "accept": "application/json" } });
+    const headers = new Headers(res.headers);
+    headers.set("access-control-allow-origin", "*");
+    headers.set("access-control-allow-methods", "GET,OPTIONS");
+    headers.set("access-control-allow-headers", "Content-Type,Accept");
+
+    return new Response(res.body, { status: res.status, headers });
+  }
+};</pre>
+      </div>
+    </details>
+
+  </div>
+
+<script>
+  // --- Helpers ---
+  const $ = (id) => document.getElementById(id);
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+  const fmt = (x, d=2) => {
+    const n = Number(x);
+    if (!Number.isFinite(n)) return '';
+    return n.toLocaleString('it-IT', {maximumFractionDigits:d, minimumFractionDigits:d});
+  };
+  const fmtInt = (x) => {
+    const n = Number(x);
+    if (!Number.isFinite(n)) return '';
+    return n.toLocaleString('it-IT');
+  };
+  const iso = (v) => {
+    if (!v) return '';
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return String(v);
+    return d.toISOString().slice(0,10);
+  };
+  const marketUrl = (slug) => slug ? `https://polymarket.com/market/${slug}` : '';
+
+  function log(msg, isErr=false){
+    const div = $('log');
+    const line = document.createElement('div');
+    line.textContent = `${new Date().toISOString().slice(11,19)}  ${msg}`;
+    if (isErr) line.style.color = 'var(--bad)';
+    div.appendChild(line);
+    div.scrollTop = div.scrollHeight;
+  }
+  function setStatus(msg, kind=null){
+    const s = $('status');
+    s.innerHTML = msg;
+    if (kind === 'ok') s.innerHTML = `<span class="ok">OK</span> ${msg}`;
+    if (kind === 'bad') s.innerHTML = `<span class="bad">ERRORE</span> ${msg}`;
+  }
+
+  // --- Networking with CORS modes ---
+  const BASE = {
+    gamma: 'https://gamma-api.polymarket.com',
+    data:  'https://data-api.polymarket.com',
+    clob:  'https://clob.polymarket.com'
+  };
+
+  function getMode(){ return $('mode').value; }
+
+  function proxyBase(){
+    const p = $('proxy').value.trim();
+    return p;
+  }
+
+  let warnedNoProxy = false;
+
+  function buildFetchUrl(url){
+    const mode = getMode();
+    const p = proxyBase();
+
+    const origin = (location && location.origin) ? location.origin : '';
+    const inFile = origin === 'null' || location.protocol === 'file:';
+
+    if (mode === 'direct') return url;
+
+    if (mode === 'proxy') {
+      if (!p) throw new Error('Modalità Proxy selezionata ma Proxy base è vuoto.');
+      return p + encodeURIComponent(url);
+    }
+
+    // auto
+    if (inFile && p) return p + encodeURIComponent(url);
+
+    // auto + file:// senza proxy: proviamo comunque in diretta (potrebbe fallire per CORS)
+    if (inFile && !p && !warnedNoProxy){
+      warnedNoProxy = true;
+      log('Se sei in file:// senza proxy, le API possono fallire per CORS (origin null). Se vedi “Failed to fetch”, prova localhost/hosting oppure proxy.', true);
+    }
+    return url;
+  }
+
+  async function fetchJson(url, timeoutMs=20000){
+    const u = buildFetchUrl(url);
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort('timeout'), timeoutMs);
+    try{
+      log(`GET ${u}`);
+      const res = await fetch(u, { method:'GET', headers:{'accept':'application/json'}, signal: ac.signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      const data = await res.json();
+      return data;
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  function unwrap(data){
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.data)) return data.data;
+    if (Array.isArray(data?.items)) return data.items;
+    return data;
+  }
+
+  // --- Parsing market fields defensively ---
+  function num(v){
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function firstFinite(...vals){
+    for (const v of vals){
+      const n = num(v);
+      if (n !== null) return n;
+    }
+    return null;
+  }
+
+  function getYesPrice(m){
+    if (Array.isArray(m?.outcomes) && Array.isArray(m?.outcomePrices)){
+      const idx = m.outcomes.findIndex(x => String(x).toLowerCase() === 'yes');
+      if (idx >= 0) return firstFinite(m.outcomePrices[idx]);
+    }
+    if (Array.isArray(m?.outcomes) && Array.isArray(m?.outcomesData)){
+      const y = m.outcomesData.find(o => String(o?.name||o?.outcome).toLowerCase()==='yes');
+      if (y) return firstFinite(y.price, y.lastPrice, y.bestBid, y.bestAsk);
+    }
+    return firstFinite(m?.price, m?.lastPrice, m?.last_price, m?.yesPrice, m?.yes_price);
+  }
+
+  function getLiquidity(m){
+    return firstFinite(m?.liquidity, m?.liquidityNum, m?.liquidity_num, m?.totalLiquidity, m?.total_liquidity);
+  }
+
+  function getVolume24h(m){
+    return firstFinite(m?.volume24hr, m?.volume_24h, m?.volume24h, m?.volume, m?.dailyVolume, m?.daily_volume);
+  }
+
+  function getEnd(m){
+    return m?.endDate || m?.end_date || m?.endTime || m?.end_time || null;
+  }
+
+  function daysUntil(dateStr){
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return null;
+    return (d.getTime() - Date.now()) / (1000*60*60*24);
+  }
+
+  // --- Core scan ---
+  let lastResult = null;
+  let running = false;
+
+  async function testConnection(){
+    $('test').disabled = true;
+    try{
+      setStatus('Test in corso…');
+      log('TEST connessione: Gamma /events?limit=1');
+      const u1 = `${BASE.gamma}/events?closed=false&limit=1&offset=0`;
+      const e = unwrap(await fetchJson(u1, 20000));
+      log(`OK Gamma events: ${Array.isArray(e)?e.length:'(obj)'}`);
+
+      log('TEST connessione: Data /activity?user=0x00..&limit=1');
+      const u2 = `${BASE.data}/activity?user=0x0000000000000000000000000000000000000001&limit=1&offset=0&sortBy=TIMESTAMP&sortDirection=DESC`;
+      const a = unwrap(await fetchJson(u2, 20000));
+      log(`OK Data activity: ${Array.isArray(a)?a.length:'(obj)'}`);
+
+      setStatus('Connessione OK (Gamma + Data).', 'ok');
+    } catch (err){
+      log(`Test fallito: ${err?.message||err}`, true);
+      setStatus(`Connessione KO: ${err?.message||err}`, 'bad');
+    } finally {
+      $('test').disabled = false;
+    }
+  }
+
+  async function scan(){
+    if (running) return;
+    running = true;
+    $('scan').disabled = true;
+    $('export').disabled = true;
+
+    $('tbl').querySelector('tbody').innerHTML = `<tr><td colspan="7" style="opacity:.65">Scansione in corso…</td></tr>`;
+
+    const cfg = {
+      mode: getMode(),
+      proxy: proxyBase() || null,
+      maxDays: clamp(Number($('maxDays').value||365), 1, 3650),
+      maxRes: clamp(Number($('maxRes').value||50), 10, 500),
+      maxEntry: clamp(Number($('maxEntry').value||0.1), 0, 1),
+      minLiq: Math.max(0, Number($('minLiq').value||0)),
+      minVol: Math.max(0, Number($('minVol').value||0)),
+      pageLimit: clamp(Number($('pageLimit').value||100), 25, 200),
+      maxPages: clamp(Number($('maxPages').value||8), 1, 50),
+      tagId: $('tagId').value.trim() ? Number($('tagId').value.trim()) : null,
+    };
+
+    const debug = {
+      cfg,
+      totals: { pages:0, marketsFetched:0, marketsAnalyzed:0, passed:0 },
+      filtered: { noPrice:0, noEnd:0, expired:0, far:0, price:0, liq:0, vol:0 },
+      sample: null
+    };
+
+    try{
+      $('log').innerHTML='';
+      setStatus('Scansione mercati…');
+      log(`Config: ${JSON.stringify(cfg)}`);
+
+      const all = [];
+      for (let page=0; page<cfg.maxPages; page++){
+        const offset = page*cfg.pageLimit;
+        const qs = new URLSearchParams({
+          closed: 'false',
+          limit: String(cfg.pageLimit),
+          offset: String(offset)
+        });
+        if (cfg.tagId) qs.set('tag_id', String(cfg.tagId));
+
+        const url = `${BASE.gamma}/markets?${qs.toString()}`;
+        debug.totals.pages += 1;
+        const batch = unwrap(await fetchJson(url, 25000));
+        const arr = Array.isArray(batch) ? batch : (Array.isArray(batch?.markets) ? batch.markets : []);
+        debug.totals.marketsFetched += arr.length;
+        log(`Pagina ${page+1}: ricevuti ${arr.length} markets`);
+
+        if (!debug.sample && arr.length) debug.sample = arr[0];
+
+        all.push(...arr);
+        if (arr.length < cfg.pageLimit) break;
+        await sleep(200);
+      }
+
+      // Analyze
+      const out = [];
+      for (const m of all){
+        debug.totals.marketsAnalyzed += 1;
+
+        const yes = getYesPrice(m);
+        if (yes === null){ debug.filtered.noPrice += 1; continue; }
+
+        const end = getEnd(m);
+        if (!end){ debug.filtered.noEnd += 1; continue; }
+        const d = daysUntil(end);
+        if (d === null){ debug.filtered.noEnd += 1; continue; }
+        if (d < 0){ debug.filtered.expired += 1; continue; }
+        if (d > cfg.maxDays){ debug.filtered.far += 1; continue; }
+
+        if (yes > cfg.maxEntry){ debug.filtered.price += 1; continue; }
+
+        const liq = getLiquidity(m) ?? 0;
+        if (liq < cfg.minLiq){ debug.filtered.liq += 1; continue; }
+
+        const vol = getVolume24h(m) ?? 0;
+        if (vol < cfg.minVol){ debug.filtered.vol += 1; continue; }
+
+        out.push({
+          id: m.id ?? null,
+          question: m.question ?? m.title ?? '(senza titolo)',
+          slug: m.slug ?? null,
+          yesPrice: yes,
+          liquidity: liq,
+          volume24h: vol,
+          endDate: end,
+        });
+      }
+
+      out.sort((a,b)=> (a.yesPrice-b.yesPrice) || (b.liquidity-a.liquidity));
+      const top = out.slice(0, cfg.maxRes);
+      debug.totals.passed = out.length;
+
+      // Render
+      const tb = $('tbl').querySelector('tbody');
+      tb.innerHTML = '';
+      if (!top.length){
+        tb.innerHTML = `<tr><td colspan="7" style="opacity:.65">Nessuna opportunità trovata con i filtri attuali (oppure CORS blocca le API).</td></tr>`;
+      } else {
+        top.forEach((x,i)=>{
+          const url = marketUrl(x.slug);
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${i+1}</td>
+            <td>${escapeHtml(x.question).slice(0,120)}</td>
+            <td>${fmt(x.yesPrice,3)}</td>
+            <td>${fmtInt(x.liquidity)}</td>
+            <td>${fmtInt(x.volume24h)}</td>
+            <td>${iso(x.endDate)}</td>
+            <td>${url ? `<a href="${url}" target="_blank" rel="noreferrer">Apri</a>` : ''}</td>
+          `;
+          tb.appendChild(tr);
+        });
+      }
+
+      lastResult = { cfg, debug, opportunities: top, fetched: debug.totals.marketsFetched };
+      $('debug').textContent = JSON.stringify(lastResult, null, 2);
+      $('export').disabled = false;
+
+      setStatus(`Completato. Analizzati ${debug.totals.marketsAnalyzed} mercati, opportunità: ${out.length} (mostro ${top.length}).`, 'ok');
+      log(`FILTRI: ${JSON.stringify(debug.filtered)}`);
+
+    } catch (err){
+      log(`ERRORE scan: ${err?.message||err}`, true);
+      setStatus(`Errore connessione API: ${err?.message||err}`, 'bad');
+      $('debug').textContent = JSON.stringify({error:String(err?.message||err)}, null, 2);
+      lastResult = null;
+    } finally {
+      running = false;
+      $('scan').disabled = false;
+    }
+  }
+
+  function escapeHtml(s){
+    return String(s)
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;')
+      .replaceAll("'",'&#039;');
+  }
+
+  function downloadFile(name, text, mime='application/json'){
+    const blob = new Blob([text], {type:mime});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();}, 0);
+  }
+
+  function reset(){
+    $('log').innerHTML='';
+    setStatus('Reset completato.');
+    $('tbl').querySelector('tbody').innerHTML = `<tr><td colspan="7" style="opacity:.65">Nessun dato.</td></tr>`;
+    $('debug').textContent = '—';
+    lastResult = null;
+    $('export').disabled = true;
+  }
+
+  $('test').addEventListener('click', testConnection);
+  $('scan').addEventListener('click', scan);
+  $('reset').addEventListener('click', reset);
+  $('export').addEventListener('click', ()=>{
+    if (!lastResult) return;
+    const fn = `polymarket_scanner_${new Date().toISOString().slice(0,10)}.json`;
+    downloadFile(fn, JSON.stringify(lastResult, null, 2));
+  });
+
+  // Avviso se aperto come file://
+  try{
+    const inFile = (location.origin === 'null' || location.protocol === 'file:');
+    if (inFile){
+      log('Nota: stai aprendo in file://. Se vedi “Failed to fetch”, prova a servire la pagina via HTTP locale (localhost) o hosting.', true);
+    }
+  } catch {}
+
+  log('Script pronto. Premi “Test connessione” e poi “Scansiona mercati”.');
+</script>
+</body>
+</html>
