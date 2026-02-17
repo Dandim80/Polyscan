@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Polymarket Scanner – opportunità (CORS proxy)</title>
+  <title>Polymarket Scanner – opportunità (fix CORS + prezzi)</title>
   <style>
     :root{color-scheme:light dark;--b:1px solid rgba(127,127,127,.35);--bg:rgba(127,127,127,.08);--ok:#1b8a3b;--bad:#c92a2a;--mut:#666}
     body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;padding:14px}
     .wrap{max-width:1150px;margin:0 auto;border:var(--b);border-radius:14px;padding:14px;background:rgba(127,127,127,.02)}
     h1{margin:0 0 10px 0;font-size:18px}
-    .grid{display:grid;grid-template-columns:1.2fr .7fr .7fr .7fr .7fr;gap:10px;align-items:end}
+    .grid{display:grid;grid-template-columns:1.2fr .9fr .7fr .7fr .7fr;gap:10px;align-items:end}
     @media (max-width:980px){.grid{grid-template-columns:1fr 1fr}}
     label{display:grid;gap:6px;font-size:13px;opacity:.95}
     input,select,button{padding:10px;border-radius:10px;border:var(--b);font:inherit}
@@ -35,61 +35,61 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>Polymarket Scanner – opportunità (con CORS proxy)</h1>
+    <h1>Polymarket Scanner – opportunità (fix CORS + prezzi)</h1>
 
     <div class="grid">
       <label>
         Modalità chiamate
         <select id="mode">
-          <option value="auto" selected>Auto (diretta → fallback proxy)</option>
-          <option value="direct">Diretta (senza proxy)</option>
-          <option value="proxy">Sempre proxy</option>
+          <option value="proxy" selected>Sempre proxy (consigliato)</option>
+          <option value="auto">Auto (diretta → fallback proxy)</option>
+          <option value="direct">Diretta (solo se CORS OK)</option>
         </select>
       </label>
 
       <label>
         Proxy base
-        <input id="proxy" value="https://corsproxy.io/?" />
+        <input id="proxy" value="https://silent-sound-7155.wifi4italy.workers.dev/?url=" />
       </label>
 
       <label>
         Max giorni a scadenza
-        <input id="maxDays" type="number" min="1" max="3650" value="365" />
+        <input id="maxDays" inputmode="numeric" type="number" min="1" max="3650" value="365" />
       </label>
 
       <label>
         Max risultati
-        <input id="maxRes" type="number" min="10" max="500" value="50" />
+        <input id="maxRes" inputmode="numeric" type="number" min="10" max="500" value="50" />
       </label>
 
       <label>
         Max entry (prezzo YES)
-        <input id="maxEntry" type="number" min="0" max="1" step="0.001" value="0.10" />
+        <input id="maxEntry" inputmode="decimal" type="text" value="0.10" />
       </label>
 
       <label>
         Min liquidità
-        <input id="minLiq" type="number" min="0" step="1" value="500" />
+        <input id="minLiq" inputmode="numeric" type="number" min="0" step="1" value="500" />
       </label>
 
       <label>
         Min volume 24h
-        <input id="minVol" type="number" min="0" step="1" value="50" />
+        <input id="minVol" inputmode="numeric" type="number" min="0" step="1" value="50" />
       </label>
 
       <label>
         Pagine (limit)
-        <input id="pageLimit" type="number" min="25" max="200" step="25" value="100" />
+        <input id="pageLimit" inputmode="numeric" type="number" min="25" max="200" step="25" value="100" />
       </label>
 
       <label>
         Max pagine
-        <input id="maxPages" type="number" min="1" max="50" value="8" />
+        <input id="maxPages" inputmode="numeric" type="number" min="1" max="50" value="8" />
       </label>
 
       <label>
         Tag ID (opzionale)
-        <input id="tagId" type="number" min="0" step="1" placeholder="es. 100381" />
+        <input id="tagId" inputmode="numeric" type="number" min="0" step="1" placeholder="es. 100381" />
       </label>
     </div>
 
@@ -104,8 +104,8 @@
     <div id="log" class="log"></div>
 
     <div class="hint">
-      <div><span class="pill">Nota</span> Questo file prova in diretta e, se il browser blocca per CORS, ritenta automaticamente via proxy.</div>
-      <div class="small" style="margin-top:6px">Se vuoi una soluzione stabile al 100%, sostituisci il proxy con un tuo Cloudflare Worker (consigliato). I proxy pubblici possono rate-limitare.</div>
+      <div><span class="pill">OK</span> Proxy impostato sul tuo Worker: <span class="mono">https://silent-sound-7155.wifi4italy.workers.dev/?url=</span></div>
+      <div class="small" style="margin-top:6px">Fix incluso: su Gamma API i campi <span class="mono">outcomes</span> / <span class="mono">outcomePrices</span> possono arrivare come stringhe JSON, qui vengono parsati correttamente.</div>
     </div>
 
     <table id="tbl">
@@ -131,46 +131,17 @@
         <pre id="debug" class="mono" style="margin:0;white-space:pre-wrap">—</pre>
       </div>
     </details>
-
-    <details>
-      <summary>Worker Cloudflare (proxy definitivo)</summary>
-      <div class="pad">
-        <div class="small">Crea un Worker, incolla questo codice, fai deploy e poi sostituisci “Proxy base” con l’URL del worker + <span class="mono">?url=</span>.</div>
-        <pre class="mono" style="white-space:pre-wrap">export default {
-  async fetch(request) {
-    const url = new URL(request.url);
-    const target = url.searchParams.get("url");
-    if (!target) return new Response("Missing ?url=", { status: 400 });
-
-    if (request.method === "OPTIONS") {
-      return new Response(null, {
-        status: 204,
-        headers: {
-          "access-control-allow-origin": "*",
-          "access-control-allow-methods": "GET,OPTIONS",
-          "access-control-allow-headers": "Content-Type,Accept"
-        }
-      });
-    }
-
-    const res = await fetch(target, { headers: { "accept": "application/json" } });
-    const headers = new Headers(res.headers);
-    headers.set("access-control-allow-origin", "*");
-    headers.set("access-control-allow-methods", "GET,OPTIONS");
-    headers.set("access-control-allow-headers", "Content-Type,Accept");
-
-    return new Response(res.body, { status: res.status, headers });
-  }
-};</pre>
-      </div>
-    </details>
-
   </div>
 
 <script>
   const $ = (id) => document.getElementById(id);
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+
+  const BASE = {
+    gamma: 'https://gamma-api.polymarket.com',
+    data:  'https://data-api.polymarket.com'
+  };
 
   const fmt = (x, d=2) => {
     const n = Number(x);
@@ -188,12 +159,6 @@
     if (isNaN(d.getTime())) return String(v);
     return d.toISOString().slice(0,10);
   };
-
-  const BASE = {
-    gamma: 'https://gamma-api.polymarket.com',
-    data:  'https://data-api.polymarket.com'
-  };
-
   const marketUrl = (slug) => slug ? `https://polymarket.com/market/${slug}` : '';
 
   function log(msg, isErr=false){
@@ -214,19 +179,25 @@
   function getMode(){ return $('mode').value; }
   function proxyBase(){ return ($('proxy').value || '').trim(); }
 
+  function parseLocaleNumber(v){
+    if (v === null || v === undefined) return NaN;
+    const s = String(v).trim().replace(',', '.');
+    return Number(s);
+  }
+
   function proxify(url){
     const p = proxyBase();
     if (!p) throw new Error('Proxy base vuoto.');
     return p + encodeURIComponent(url);
   }
 
-  async function fetchJson(url, timeoutMs=20000){
+  async function fetchJson(url, timeoutMs=25000){
     const mode = getMode();
     const ac = new AbortController();
     const t = setTimeout(() => ac.abort('timeout'), timeoutMs);
 
     async function doFetch(u, label){
-      log(`GET${label?` ${label}`:''} ${u}`);
+      log(`GET ${label} ${u}`);
       const res = await fetch(u, { method:'GET', headers:{'accept':'application/json'}, signal: ac.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
       return res.json();
@@ -243,7 +214,7 @@
         const p = proxyBase();
         if (!p) throw e1;
         log(`Direct fallita (${e1?.message||e1}). Riprovo via proxy…`, true);
-        return await doFetch(proxify(url), '(proxy fallback)');
+        return await doFetch(proxify(url), '(proxy-fallback)');
       }
     } finally {
       clearTimeout(t);
@@ -257,10 +228,22 @@
     return data;
   }
 
+  function asJsonArray(v){
+    if (Array.isArray(v)) return v;
+    if (typeof v === 'string') {
+      try {
+        const a = JSON.parse(v);
+        return Array.isArray(a) ? a : [];
+      } catch { return []; }
+    }
+    return [];
+  }
+
   function num(v){
-    const n = Number(v);
+    const n = (typeof v === 'string') ? parseLocaleNumber(v) : Number(v);
     return Number.isFinite(n) ? n : null;
   }
+
   function firstFinite(...vals){
     for (const v of vals){
       const n = num(v);
@@ -270,26 +253,59 @@
   }
 
   function getYesPrice(m){
-    if (Array.isArray(m?.outcomes) && Array.isArray(m?.outcomePrices)){
-      const idx = m.outcomes.findIndex(x => String(x).toLowerCase() === 'yes');
-      if (idx >= 0) return firstFinite(m.outcomePrices[idx]);
+    const outcomes = asJsonArray(m?.outcomes);
+    const prices = asJsonArray(m?.outcomePrices);
+
+    if (outcomes.length && prices.length) {
+      const idx = outcomes.findIndex(x => String(x).toLowerCase() === 'yes');
+      if (idx >= 0) {
+        const p = num(prices[idx]);
+        if (p !== null) return p;
+      }
     }
-    return firstFinite(m?.price, m?.lastPrice, m?.last_price, m?.yesPrice, m?.yes_price);
+
+    return firstFinite(
+      m?.lastTradePrice, m?.bestAsk, m?.bestBid,
+      m?.price, m?.lastPrice, m?.last_price, m?.yesPrice, m?.yes_price
+    );
   }
+
   function getLiquidity(m){
-    return firstFinite(m?.liquidity, m?.liquidityNum, m?.liquidity_num, m?.totalLiquidity, m?.total_liquidity);
+    return firstFinite(m?.liquidityNum, m?.liquidity_num, m?.liquidity, m?.totalLiquidity, m?.total_liquidity);
   }
+
   function getVolume24h(m){
-    return firstFinite(m?.volume24hr, m?.volume_24h, m?.volume24h, m?.volume, m?.dailyVolume, m?.daily_volume);
+    return firstFinite(m?.volume24hr, m?.volume_24h, m?.volume24h, m?.dailyVolume, m?.daily_volume);
   }
+
   function getEnd(m){
     return m?.endDate || m?.end_date || m?.endTime || m?.end_time || null;
   }
+
   function daysUntil(dateStr){
     if (!dateStr) return null;
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return null;
     return (d.getTime() - Date.now()) / (1000*60*60*24);
+  }
+
+  function escapeHtml(s){
+    return String(s)
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;')
+      .replaceAll("'",'&#039;');
+  }
+
+  function downloadFile(name, text, mime='application/json'){
+    const blob = new Blob([text], {type:mime});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();}, 0);
   }
 
   let lastResult = null;
@@ -327,14 +343,14 @@
     const cfg = {
       mode: getMode(),
       proxy: proxyBase() || null,
-      maxDays: clamp(Number($('maxDays').value||365), 1, 3650),
-      maxRes: clamp(Number($('maxRes').value||50), 10, 500),
-      maxEntry: clamp(Number($('maxEntry').value||0.1), 0, 1),
-      minLiq: Math.max(0, Number($('minLiq').value||0)),
-      minVol: Math.max(0, Number($('minVol').value||0)),
-      pageLimit: clamp(Number($('pageLimit').value||100), 25, 200),
-      maxPages: clamp(Number($('maxPages').value||8), 1, 50),
-      tagId: $('tagId').value.trim() ? Number($('tagId').value.trim()) : null,
+      maxDays: clamp(parseLocaleNumber($('maxDays').value||365), 1, 3650),
+      maxRes: clamp(parseLocaleNumber($('maxRes').value||50), 10, 500),
+      maxEntry: clamp(parseLocaleNumber($('maxEntry').value||'0.10'), 0, 1),
+      minLiq: Math.max(0, parseLocaleNumber($('minLiq').value||0)),
+      minVol: Math.max(0, parseLocaleNumber($('minVol').value||0)),
+      pageLimit: clamp(parseLocaleNumber($('pageLimit').value||100), 25, 200),
+      maxPages: clamp(parseLocaleNumber($('maxPages').value||8), 1, 50),
+      tagId: $('tagId').value.trim() ? parseLocaleNumber($('tagId').value.trim()) : null,
     };
 
     const debug = {
@@ -364,7 +380,7 @@
         if (!debug.sample && arr.length) debug.sample = arr[0];
         all.push(...arr);
         if (arr.length < cfg.pageLimit) break;
-        await sleep(200);
+        await sleep(150);
       }
 
       const out = [];
@@ -441,25 +457,6 @@
       running = false;
       $('scan').disabled = false;
     }
-  }
-
-  function escapeHtml(s){
-    return String(s)
-      .replaceAll('&','&amp;')
-      .replaceAll('<','&lt;')
-      .replaceAll('>','&gt;')
-      .replaceAll('"','&quot;')
-      .replaceAll("'",'&#039;');
-  }
-
-  function downloadFile(name, text, mime='application/json'){
-    const blob = new Blob([text], {type:mime});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();}, 0);
   }
 
   function reset(){
