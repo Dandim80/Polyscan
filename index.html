@@ -3,481 +3,1347 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Polymarket Scanner – opportunità (fix CORS + prezzi)</title>
+  <title>Polymarket Suite — Copy + Predizioni + Opportunità + Paper</title>
   <style>
-    :root{color-scheme:light dark;--b:1px solid rgba(127,127,127,.35);--bg:rgba(127,127,127,.08);--ok:#1b8a3b;--bad:#c92a2a;--mut:#666}
+    :root{color-scheme:light dark;--b:1px solid rgba(127,127,127,.35);--bg:rgba(127,127,127,.08);--bg2:rgba(127,127,127,.12)}
     body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;padding:14px}
-    .wrap{max-width:1150px;margin:0 auto;border:var(--b);border-radius:14px;padding:14px;background:rgba(127,127,127,.02)}
-    h1{margin:0 0 10px 0;font-size:18px}
-    .grid{display:grid;grid-template-columns:1.2fr .9fr .7fr .7fr .7fr;gap:10px;align-items:end}
-    @media (max-width:980px){.grid{grid-template-columns:1fr 1fr}}
+    .wrap{max-width:1180px;margin:0 auto;border:var(--b);border-radius:14px;padding:14px}
+    .topbar{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    .pill{border:var(--b);border-radius:999px;padding:6px 10px;font-size:12px;opacity:.9}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .tab{border:var(--b);border-radius:999px;padding:8px 12px;background:transparent;color:inherit;cursor:pointer}
+    .tab.active{background:var(--bg2)}
+    .grid{display:grid;grid-template-columns:1.4fr .8fr .8fr .8fr 1fr;gap:10px;align-items:end;margin-top:10px}
+    @media(max-width:980px){.grid{grid-template-columns:1fr 1fr}}
     label{display:grid;gap:6px;font-size:13px;opacity:.95}
-    input,select,button{padding:10px;border-radius:10px;border:var(--b);font:inherit}
+    input,select,button,textarea{padding:10px;border-radius:10px;border:var(--b);font:inherit}
+    textarea{min-height:70px;resize:vertical}
     button{cursor:pointer}
     button:disabled{opacity:.55;cursor:not-allowed}
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:flex-end;margin-top:10px}
-    .status{margin-top:10px;padding:10px;border-radius:10px;background:var(--bg);font-size:13px}
-    .status .ok{color:var(--ok);font-weight:700}
-    .status .bad{color:var(--bad);font-weight:700}
-    .log{margin-top:10px;padding:10px;border-radius:10px;background:var(--bg);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;max-height:220px;overflow:auto}
-    .hint{margin-top:10px;padding:10px;border-radius:10px;background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.35);font-size:13px}
-    table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
-    th,td{border-top:var(--b);padding:8px;text-align:left;vertical-align:top}
-    th{position:sticky;top:0;background:rgba(127,127,127,.08);backdrop-filter:blur(6px)}
-    .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:var(--b);font-size:12px;opacity:.9}
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
-    .small{font-size:12px;color:var(--mut)}
+    .actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+    .status{margin-top:10px;font-size:13px;opacity:.9}
+    .hint{margin-top:6px;font-size:12px;opacity:.78;line-height:1.35}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;word-break:break-all}
+    .panel{display:none;margin-top:12px}
+    .panel.active{display:block}
+    .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+    @media(max-width:980px){.cards{grid-template-columns:repeat(2,1fr)}}
+    .card{border:var(--b);border-radius:12px;padding:10px;background:var(--bg)}
+    .k{font-size:12px;opacity:.85}
+    .v{font-size:18px;font-weight:650;margin-top:4px}
     details{margin-top:12px;border:var(--b);border-radius:12px;overflow:hidden}
-    summary{padding:10px;cursor:pointer;background:var(--bg)}
-    .pad{padding:10px}
+    details summary{padding:10px;cursor:pointer;background:var(--bg)}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{border-top:var(--b);padding:8px;text-align:left;vertical-align:top}
     a{color:inherit}
+    .log{margin-top:10px;border-top:var(--b);padding-top:12px;display:grid;gap:10px}
+    .item{border:var(--b);border-radius:12px;padding:10px;display:grid;gap:8px}
+    .rowflex{display:flex;gap:10px;align-items:center}
+    .thumb{width:46px;height:46px;border-radius:10px;border:var(--b);object-fit:cover;flex:0 0 auto}
+    .grow{flex:1 1 auto;min-width:0}
+    .title{font-weight:650}
+    .meta{font-size:12px;opacity:.86;display:flex;gap:10px;flex-wrap:wrap}
+    .links{display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:12px}
+    .links a,.links button{border:var(--b);padding:6px 10px;border-radius:999px;background:transparent;color:inherit;text-decoration:none}
+    .warn{font-size:12px;opacity:.8}
+    .ok{color:#1b8f3a;font-weight:650}
+    .bad{color:#c62828;font-weight:650}
+    .muted{opacity:.75}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>Polymarket Scanner – opportunità (fix CORS + prezzi)</h1>
-
-    <div class="grid">
-      <label>
-        Modalità chiamate
-        <select id="mode">
-          <option value="proxy" selected>Sempre proxy (consigliato)</option>
-          <option value="auto">Auto (diretta → fallback proxy)</option>
-          <option value="direct">Diretta (solo se CORS OK)</option>
-        </select>
-      </label>
-
-      <label>
-        Proxy base
-        <input id="proxy" value="https://silent-sound-7155.wifi4italy.workers.dev/?url=" />
-      </label>
-
-      <label>
-        Max giorni a scadenza
-        <input id="maxDays" inputmode="numeric" type="number" min="1" max="3650" value="365" />
-      </label>
-
-      <label>
-        Max risultati
-        <input id="maxRes" inputmode="numeric" type="number" min="10" max="500" value="50" />
-      </label>
-
-      <label>
-        Max entry (prezzo YES)
-        <input id="maxEntry" inputmode="decimal" type="text" value="0.10" />
-      </label>
-
-      <label>
-        Min liquidità
-        <input id="minLiq" inputmode="numeric" type="number" min="0" step="1" value="500" />
-      </label>
-
-      <label>
-        Min volume 24h
-        <input id="minVol" inputmode="numeric" type="number" min="0" step="1" value="50" />
-      </label>
-
-      <label>
-        Pagine (limit)
-        <input id="pageLimit" inputmode="numeric" type="number" min="25" max="200" step="25" value="100" />
-      </label>
-
-      <label>
-        Max pagine
-        <input id="maxPages" inputmode="numeric" type="number" min="1" max="50" value="8" />
-      </label>
-
-      <label>
-        Tag ID (opzionale)
-        <input id="tagId" inputmode="numeric" type="number" min="0" step="1" placeholder="es. 100381" />
-      </label>
-    </div>
-
-    <div class="row">
-      <button id="test">Test connessione</button>
-      <button id="scan">Scansiona mercati</button>
-      <button id="export" disabled>Export JSON</button>
-      <button id="reset">Reset</button>
-    </div>
-
-    <div id="status" class="status">Pronto.</div>
-    <div id="log" class="log"></div>
-
-    <div class="hint">
-      <div><span class="pill">OK</span> Proxy impostato sul tuo Worker: <span class="mono">https://silent-sound-7155.wifi4italy.workers.dev/?url=</span></div>
-      <div class="small" style="margin-top:6px">Fix incluso: su Gamma API i campi <span class="mono">outcomes</span> / <span class="mono">outcomePrices</span> possono arrivare come stringhe JSON, qui vengono parsati correttamente.</div>
-    </div>
-
-    <table id="tbl">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Market</th>
-          <th>YES</th>
-          <th>Liq</th>
-          <th>Vol 24h</th>
-          <th>Scade</th>
-          <th>Link</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr><td colspan="7" style="opacity:.65">Nessun dato.</td></tr>
-      </tbody>
-    </table>
-
-    <details>
-      <summary>Debug (ultimo run)</summary>
-      <div class="pad">
-        <pre id="debug" class="mono" style="margin:0;white-space:pre-wrap">—</pre>
-      </div>
-    </details>
+<div class="wrap">
+  <div class="topbar">
+    <div class="pill">Data API: <span class="mono">https://data-api.polymarket.com</span></div>
+    <div class="pill">Gamma API: <span class="mono">https://gamma-api.polymarket.com</span></div>
+    <div class="pill">Persistenza: localStorage</div>
   </div>
 
+  <div class="tabs">
+    <button class="tab active" data-tab="copy">Copia user (live)</button>
+    <button class="tab" data-tab="pred">Predizioni (posizioni)</button>
+    <button class="tab" data-tab="opp">Opportunità (mercati)</button>
+    <button class="tab" data-tab="paper">Paper trading</button>
+    <button class="tab" data-tab="stats">Stats</button>
+    <button class="tab" data-tab="help">Help</button>
+  </div>
+
+  <!-- COMMON CONFIG -->
+  <div class="grid">
+    <label>Wallet target (0x…)
+      <input id="addr" class="mono" value="0xe8dd7741ccb12350957ec71e9ee332e0d1e6ec86" />
+    </label>
+    <label>Lookback (giorni)
+      <input id="days" type="number" min="1" max="365" value="30" />
+    </label>
+    <label>Poll interval (ms)
+      <input id="interval" type="number" min="800" step="200" value="2500" />
+    </label>
+    <label>Activity limit (≤500)
+      <input id="limitAct" type="number" min="1" max="500" value="120" />
+    </label>
+    <label>Filtro activity type
+      <select id="type">
+        <option value="">Tutti</option>
+        <option value="TRADE">TRADE</option>
+        <option value="CONVERSION">CONVERSION</option>
+        <option value="MERGE">MERGE</option>
+        <option value="SPLIT">SPLIT</option>
+        <option value="REDEEM">REDEEM</option>
+        <option value="REWARD">REWARD</option>
+        <option value="MAKER_REBATE">MAKER_REBATE</option>
+      </select>
+    </label>
+
+    <div class="actions" style="grid-column:1/-1">
+      <button id="start">Start live</button>
+      <button id="stop" disabled>Stop</button>
+      <button id="clear">Clear feed</button>
+      <button id="exportAll">Export JSON</button>
+      <button id="importAllBtn">Import JSON</button>
+      <input id="importAllFile" type="file" accept="application/json" style="display:none" />
+    </div>
+  </div>
+
+  <div class="status" id="status">Idle.</div>
+  <div class="hint">
+    Per “copiarlo” in modo sensato: replica soprattutto i <b>TRADE</b>; CONVERSION/MERGE sono operazioni tecniche (spesso non replicabili 1:1). 
+  </div>
+
+  <!-- COPY PANEL -->
+  <section class="panel active" id="panel-copy">
+    <details open>
+      <summary>Regole segnali (dai TRADE)</summary>
+      <div style="padding:10px" class="grid">
+        <label>Min USDC size
+          <input id="minUsdc" type="number" min="0" step="0.01" value="10" />
+        </label>
+        <label>Segnale: NO ≥
+          <input id="noHi" type="number" min="0" max="1" step="0.001" value="0.97" />
+        </label>
+        <label>Segnale: YES ≤
+          <input id="yesLo" type="number" min="0" max="1" step="0.001" value="0.03" />
+        </label>
+        <label>Auto-salva segnali
+          <select id="autoSignals">
+            <option value="1">Sì</option>
+            <option value="0">No</option>
+          </select>
+        </label>
+        <label>Auto-paper (solo se segnale)
+          <select id="autoPaper">
+            <option value="0">No</option>
+            <option value="1">Sì (test)</option>
+          </select>
+        </label>
+      </div>
+      <div style="padding:10px" class="warn">
+        Nota: il prezzo del suo trade può non essere replicabile uguale (slippage/spread). Usa “Apri market” per verificare il prezzo attuale.
+      </div>
+    </details>
+
+    <details open>
+      <summary>Feed live + segnali</summary>
+      <div style="padding:10px">
+        <div class="cards">
+          <div class="card"><div class="k">Record visti</div><div class="v" id="seenCount">0</div></div>
+          <div class="card"><div class="k">Nuovi ultimo poll</div><div class="v" id="newCount">0</div></div>
+          <div class="card"><div class="k">Segnali salvati</div><div class="v" id="sigCount">0</div></div>
+          <div class="card"><div class="k">Paper trades</div><div class="v" id="paperCount">0</div></div>
+        </div>
+
+        <div class="log" id="log"></div>
+      </div>
+    </details>
+
+    <details>
+      <summary>Segnali (lista)</summary>
+      <div style="padding:10px">
+        <table id="tblSignals">
+          <thead>
+            <tr>
+              <th>Time</th><th>Market</th><th>Outcome</th><th>Side</th><th>Price</th><th>USDC</th><th>Azioni</th>
+            </tr>
+          </thead>
+          <tbody><tr><td colspan="7" style="opacity:.6">Nessun segnale</td></tr></tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+
+  <!-- PREDICTIONS PANEL -->
+  <section class="panel" id="panel-pred">
+    <details open>
+      <summary>Scanner predizioni (posizioni aperte)</summary>
+      <div style="padding:10px" class="grid">
+        <label>Limite posizioni (Data API)
+          <input id="posLimit" type="number" min="10" max="200" value="100" />
+        </label>
+        <label>Ordina per
+          <select id="posSort">
+            <option value="CASHPNL_DESC">cashPnl desc</option>
+            <option value="VALUE_DESC">currentValue desc</option>
+            <option value="SIZE_DESC">size desc</option>
+          </select>
+        </label>
+        <label>Solo outcome YES/NO
+          <select id="posYesNoOnly">
+            <option value="0">No</option>
+            <option value="1">Sì</option>
+          </select>
+        </label>
+        <label>Filtro keyword (title/slug)
+          <input id="posKw" placeholder="es: fed, iran, grok..." />
+        </label>
+        <label>Mostra solo “estremi”
+          <select id="posExtremes">
+            <option value="0">No</option>
+            <option value="1">Sì (YES ≤ yesLo o NO ≥ noHi)</option>
+          </select>
+        </label>
+        <div class="actions" style="grid-column:1/-1">
+          <button id="loadPositions">Carica posizioni</button>
+          <button id="paperizeTop">Paperizza top 20</button>
+          <button id="clearPositions">Clear</button>
+        </div>
+      </div>
+      <div style="padding:10px" class="warn">
+        Qui “predizione” = posizione aperta: ti mostra su cosa è esposto adesso (non solo cosa ha tradato in passato).
+      </div>
+    </details>
+
+    <details open>
+      <summary>Posizioni aperte</summary>
+      <div style="padding:10px">
+        <table id="tblOpen">
+          <thead>
+            <tr>
+              <th>Market</th><th>Outcome</th><th>Avg</th><th>Cur</th><th>Size</th><th>Value</th><th>PnL</th><th>Azioni</th>
+            </tr>
+          </thead>
+          <tbody><tr><td colspan="8" style="opacity:.6">Nessun dato</td></tr></tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+
+  <!-- OPPORTUNITIES PANEL -->
+  <section class="panel" id="panel-opp">
+    <details open>
+      <summary>Scanner opportunità (Gamma /markets)</summary>
+      <div style="padding:10px" class="grid">
+        <label>Keyword (title/slug)
+          <input id="kw" placeholder="es: fed, iran, oscars..." />
+        </label>
+        <label>Mode
+          <select id="oppMode">
+            <option value="NO_HI">NO alto (>= noHi)</option>
+            <option value="YES_LO">YES basso (<= yesLo)</option>
+            <option value="ANY">Qualsiasi (solo keyword)</option>
+          </select>
+        </label>
+        <label>Solo active=true
+          <select id="onlyActive">
+            <option value="1">Sì</option>
+            <option value="0">No</option>
+          </select>
+        </label>
+        <label>Solo closed=false
+          <select id="onlyOpen">
+            <option value="1">Sì</option>
+            <option value="0">No</option>
+          </select>
+        </label>
+        <label>Pagine (100/pg)
+          <input id="pages" type="number" min="1" max="25" value="4" />
+        </label>
+        <div class="actions" style="grid-column:1/-1">
+          <button id="scanOpp">Scansiona mercati</button>
+          <button id="clearOpp">Clear</button>
+        </div>
+      </div>
+      <div style="padding:10px" class="warn">
+        Se hai CORS su file locale: usa un server (python/http-server) e apri via http://localhost.
+      </div>
+    </details>
+
+    <details open>
+      <summary>Risultati opportunità</summary>
+      <div style="padding:10px">
+        <table id="tblOpp">
+          <thead>
+            <tr>
+              <th>Market</th><th>YES</th><th>NO</th><th>Scadenza</th><th>Azioni</th>
+            </tr>
+          </thead>
+          <tbody><tr><td colspan="5" style="opacity:.6">Nessun dato</td></tr></tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+
+  <!-- PAPER PANEL -->
+  <section class="panel" id="panel-paper">
+    <details open>
+      <summary>Paper trading</summary>
+      <div style="padding:10px" class="grid">
+        <label>ConditionId
+          <input id="paperConditionId" class="mono" placeholder="0x…" />
+        </label>
+        <label>Slug (opzionale)
+          <input id="paperSlug" placeholder="market-slug" />
+        </label>
+        <label>Outcome
+          <input id="paperOutcome" value="Yes" />
+        </label>
+        <label>Side
+          <select id="paperSide">
+            <option value="BUY">BUY</option>
+            <option value="SELL">SELL</option>
+          </select>
+        </label>
+        <label>Stake (USDC)
+          <input id="paperStake" type="number" min="0" step="0.01" value="25" />
+        </label>
+        <label>Entry price
+          <input id="paperEntry" type="number" min="0" max="1" step="0.0001" value="0.50" />
+        </label>
+        <div class="actions" style="grid-column:1/-1">
+          <button id="paperAdd">Aggiungi</button>
+          <button id="paperRefresh">Refresh prices (da cache)</button>
+          <button id="paperClear">Reset paper</button>
+        </div>
+      </div>
+      <div style="padding:10px" class="warn">
+        Refresh prices usa i prezzi già letti (posizioni/opportunità). Se vuoi refresh “globale” da Gamma, dimmelo e lo aggiungiamo con lookup paginato (più chiamate).
+      </div>
+    </details>
+
+    <details open>
+      <summary>Lista paper trades</summary>
+      <div style="padding:10px">
+        <table id="tblPaper">
+          <thead>
+            <tr>
+              <th>Market</th><th>Outcome</th><th>Entry</th><th>Last</th><th>Stake</th><th>PnL</th><th>Azioni</th>
+            </tr>
+          </thead>
+          <tbody><tr><td colspan="7" style="opacity:.6">Nessun paper trade</td></tr></tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+
+  <!-- STATS PANEL -->
+  <section class="panel" id="panel-stats">
+    <details open>
+      <summary>Stats (Data API)</summary>
+      <div style="padding:10px" class="grid">
+        <label>Closed limit (≤50)
+          <input id="limitClosed" type="number" min="10" max="50" value="50" />
+        </label>
+        <label class="muted">Tip: aumenta Activity limit per stats più stabili</label>
+        <label class="muted"></label>
+        <label class="muted"></label>
+        <label class="muted"></label>
+        <div class="actions" style="grid-column:1/-1">
+          <button id="runStats">Scarica + calcola</button>
+          <button id="clearStats">Clear</button>
+        </div>
+      </div>
+
+      <div class="cards">
+        <div class="card"><div class="k">Activity events</div><div class="v" id="cevents">-</div></div>
+        <div class="card"><div class="k">Trades</div><div class="v" id="ctrades">-</div></div>
+        <div class="card"><div class="k">Trade volume (USDC)</div><div class="v" id="cvol">-</div></div>
+        <div class="card"><div class="k">Avg trade (USDC)</div><div class="v" id="cavg">-</div></div>
+        <div class="card"><div class="k">Open positions</div><div class="v" id="copen">-</div></div>
+        <div class="card"><div class="k">Open value sum</div><div class="v" id="copenval">-</div></div>
+        <div class="card"><div class="k">Closed positions</div><div class="v" id="cclosed">-</div></div>
+        <div class="card"><div class="k">Win / Loss (closed)</div><div class="v" id="cwinloss">-</div></div>
+      </div>
+    </details>
+
+    <details>
+      <summary>Top mercati (per USDC su TRADE)</summary>
+      <div style="padding:10px">
+        <table id="tblTop">
+          <thead><tr><th>Market</th><th>Trades</th><th>USDC</th><th>Link</th></tr></thead>
+          <tbody><tr><td colspan="4" style="opacity:.6">Nessun dato</td></tr></tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+
+  <!-- HELP PANEL -->
+  <section class="panel" id="panel-help">
+    <details open>
+      <summary>Uso rapido</summary>
+      <div style="padding:10px;line-height:1.55">
+        <div><b>1)</b> Tab “Copia user”: premi Start live, guarda i TRADE e salva/replica solo i “SIGNAL”.</div>
+        <div><b>2)</b> Tab “Predizioni”: “Carica posizioni” per vedere su cosa è esposto ora; “Paperizza” per simulare.</div>
+        <div><b>3)</b> Tab “Opportunità”: cerca mercati con gli stessi estremi (NO alto / YES basso) per trovare nuove occasioni.</div>
+        <div><b>4)</b> Tab “Paper”: aggiorna lastPrice (da posizioni/opportunità) e chiudi trade per simulare PnL.</div>
+      </div>
+    </details>
+  </section>
+</div>
+
 <script>
-  const $ = (id) => document.getElementById(id);
-  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-  const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+/* -------------------- CONSTANTS -------------------- */
+const API = {
+  data: "https://data-api.polymarket.com",
+  gamma: "https://gamma-api.polymarket.com",
+};
 
-  const BASE = {
-    gamma: 'https://gamma-api.polymarket.com',
-    data:  'https://data-api.polymarket.com'
+const LS = {
+  seen: "pm_suite_seen_v2",
+  signals: "pm_suite_signals_v2",
+  paper: "pm_suite_paper_v2",
+  cache: "pm_suite_cache_v2", // prezzi osservati (posizioni/opportunità)
+};
+
+const $ = (id) => document.getElementById(id);
+
+function isAddr(x){ return /^0x[a-fA-F0-9]{40}$/.test((x||"").trim()); }
+function clamp(n,a,b){ return Math.max(a, Math.min(b, n)); }
+function fmt(x, max=140){
+  if(x===null || x===undefined) return "";
+  const s = String(x);
+  return s.length>max ? s.slice(0,max)+"…" : s;
+}
+function tsToISO(ts){
+  const n = Number(ts);
+  const sec = (n > 1e12) ? Math.floor(n/1000) : Math.floor(n);
+  const d = new Date(sec*1000);
+  return isNaN(d.getTime()) ? String(ts) : d.toISOString();
+}
+function fmtP(p){
+  const n = Number(p);
+  if(!Number.isFinite(n)) return "—";
+  return n.toFixed(4).replace(/0+$/,"").replace(/.$/,"");
+}
+function fmtNum(x,d=2){
+  const n = Number(x);
+  if(!Number.isFinite(n)) return "—";
+  return n.toLocaleString("it-IT",{minimumFractionDigits:d,maximumFractionDigits:d});
+}
+function fmtInt(x){
+  const n = Number(x);
+  if(!Number.isFinite(n)) return "—";
+  return n.toLocaleString("it-IT");
+}
+function fmtDate(d){
+  if(!d) return "—";
+  const x = new Date(d);
+  return isNaN(x.getTime()) ? String(d) : x.toISOString().slice(0,10);
+}
+function marketUrl(slug){ return slug ? `https://polymarket.com/market/${slug}` : ""; }
+
+async function fetchJson(url){
+  const res = await fetch(url, {method:"GET"});
+  if(!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  return await res.json();
+}
+function unwrap(data){
+  if(Array.isArray(data)) return data;
+  return data?.data || data?.items || [];
+}
+
+/* -------------------- STATE -------------------- */
+let timer = null;
+let seen = new Set(JSON.parse(localStorage.getItem(LS.seen) || "[]"));
+let signals = JSON.parse(localStorage.getItem(LS.signals) || "[]");
+let paper = JSON.parse(localStorage.getItem(LS.paper) || "[]");
+// cache prezzi osservati: { [conditionId]: { updatedAt, outcomes: { [outcomeLower]: price }, slug, title, endDate } }
+let cache = JSON.parse(localStorage.getItem(LS.cache) || "{}");
+
+function saveAll(){
+  localStorage.setItem(LS.seen, JSON.stringify(Array.from(seen).slice(-8000)));
+  localStorage.setItem(LS.signals, JSON.stringify(signals.slice(-1500)));
+  localStorage.setItem(LS.paper, JSON.stringify(paper.slice(-3000)));
+  localStorage.setItem(LS.cache, JSON.stringify(cache));
+  $("seenCount").textContent = String(seen.size);
+  $("sigCount").textContent = String(signals.length);
+  $("paperCount").textContent = String(paper.length);
+}
+
+function setStatus(msg){ $("status").textContent = msg; }
+
+/* -------------------- UI: TABS -------------------- */
+document.querySelectorAll(".tab").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    const tab = btn.dataset.tab;
+    document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+    $("panel-"+tab).classList.add("active");
+  });
+});
+
+/* -------------------- CACHE HELPERS -------------------- */
+function cacheSet(conditionId, patch){
+  if(!conditionId) return;
+  const cur = cache[conditionId] || {updatedAt:null,outcomes:{},slug:"",title:"",endDate:""};
+  cache[conditionId] = {...cur, ...patch, outcomes: {...cur.outcomes, ...(patch.outcomes||{})}, updatedAt: Date.now()};
+}
+function cacheGetPrice(conditionId, outcome){
+  const c = cache[conditionId];
+  if(!c) return null;
+  const k = String(outcome||"").toLowerCase();
+  return Number.isFinite(Number(c.outcomes?.[k])) ? Number(c.outcomes[k]) : null;
+}
+
+/* -------------------- LIVE COPY: ACTIVITY -------------------- */
+function mkIdx(x){
+  return [x.transactionHash, x.timestamp, x.conditionId, x.asset, x.type, x.side, x.usdcSize ?? "", x.size ?? ""].join("|");
+}
+function outcomePriceFromTrade(x){ return Number(x.price); }
+
+function isSignalTrade(x){
+  if(x.type !== "TRADE") return false;
+
+  const minUsdc = Number($("minUsdc").value || 0);
+  const usdc = Number(x.usdcSize || 0);
+  if(usdc < minUsdc) return false;
+
+  const p = outcomePriceFromTrade(x);
+  if(!Number.isFinite(p)) return false;
+
+  const noHi = Number($("noHi").value || 1);
+  const yesLo = Number($("yesLo").value || 0);
+
+  const outcome = String(x.outcome || "").toLowerCase();
+  if(outcome === "no" && p >= noHi) return true;
+  if(outcome === "yes" && p <= yesLo) return true;
+
+  return false;
+}
+
+function addFeedItem(x){
+  const log = $("log");
+  const div = document.createElement("div");
+  div.className = "item";
+
+  const top = document.createElement("div");
+  top.className = "rowflex";
+
+  const img = document.createElement("img");
+  img.className = "thumb";
+  img.loading = "lazy";
+  img.referrerPolicy = "no-referrer";
+  if(x.icon){
+    img.src = x.icon;
+    img.onerror = ()=> img.style.display="none";
+  } else img.style.display="none";
+
+  const grow = document.createElement("div");
+  grow.className = "grow";
+
+  const title = document.createElement("div");
+  title.className = "title";
+  const t = `${x.type}${x.side?(" "+x.side):""}${x.outcome?(" "+x.outcome):""}`.trim();
+  title.textContent = t || "ACTIVITY";
+
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  meta.innerHTML = `
+    <span><b>time</b> ${tsToISO(x.timestamp)}</span>
+    <span><b>price</b> ${fmtP(x.price)}</span>
+    <span><b>usdc</b> ${fmtNum(x.usdcSize,2)}</span>
+    <span><b>size</b> ${fmtNum(x.size,2)}</span>
+    <span><b>slug</b> ${fmt(x.slug, 70)}</span>
+  `;
+
+  grow.appendChild(title);
+  grow.appendChild(meta);
+
+  top.appendChild(img);
+  top.appendChild(grow);
+
+  const links = document.createElement("div");
+  links.className = "links";
+
+  const murl = marketUrl(x.slug);
+  if(murl){
+    const a = document.createElement("a");
+    a.href = murl; a.target="_blank"; a.rel="noreferrer";
+    a.textContent = "Apri market";
+    links.appendChild(a);
+
+    const btn = document.createElement("button");
+    btn.textContent = "Copia link";
+    btn.addEventListener("click", async ()=>{
+      try{ await navigator.clipboard.writeText(murl); btn.textContent="Copiato"; setTimeout(()=>btn.textContent="Copia link",900); }
+      catch{ window.prompt("Copia questo link:", murl); }
+    });
+    links.appendChild(btn);
+  }
+
+  const sig = isSignalTrade(x);
+  if(sig){
+    const badge = document.createElement("span");
+    badge.className = "pill ok";
+    badge.textContent = "SIGNAL";
+    links.appendChild(badge);
+
+    const btn2 = document.createElement("button");
+    btn2.textContent = "Paperizza";
+    btn2.addEventListener("click", ()=> paperAddFromTrade(x));
+    links.appendChild(btn2);
+  }
+
+  div.appendChild(top);
+  div.appendChild(links);
+
+  log.prepend(div);
+}
+
+function renderSignals(){
+  const tbody = $("tblSignals").querySelector("tbody");
+  tbody.innerHTML = "";
+  if(!signals.length){
+    tbody.innerHTML = `<tr><td colspan="7" style="opacity:.6">Nessun segnale</td></tr>`;
+    return;
+  }
+  for(const s of signals.slice(0, 250)){
+    const url = s.slug ? marketUrl(s.slug) : "";
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${new Date(s.ts).toISOString().slice(11,19)}</td>
+      <td>${fmt(s.title||s.slug||s.conditionId, 70)}<div class="mono muted">${fmt(s.slug||s.conditionId, 60)}</div></td>
+      <td>${fmt(s.outcome, 16)}</td>
+      <td>${fmt(s.side, 8)}</td>
+      <td>${fmtP(s.price)}</td>
+      <td>${fmtNum(s.usdcSize,2)}</td>
+      <td>
+        ${url?`<a href="${url}" target="_blank" rel="noreferrer">Apri</a>`:"—"}
+        <button data-paper="${s.tx}" style="margin-left:8px">Paper</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  }
+  tbody.querySelectorAll("button[data-paper]").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const tx = b.dataset.paper;
+      const s = signals.find(x=>x.tx===tx);
+      if(!s) return;
+      paperAddFromSignal(s, s.price);
+      document.querySelector(".tab[data-tab='paper']").click();
+    });
+  });
+}
+
+function pushSignal(x){
+  const s = {
+    ts: Date.now(),
+    user: $("addr").value.trim(),
+    conditionId: x.conditionId || "",
+    slug: x.slug || "",
+    title: x.title || "",
+    outcome: x.outcome || "",
+    side: x.side || "",
+    price: Number(x.price),
+    usdcSize: Number(x.usdcSize||0),
+    tx: x.transactionHash || "",
   };
+  signals.unshift(s);
+  signals = signals.slice(0, 1500);
+  saveAll();
+  renderSignals();
 
-  const fmt = (x, d=2) => {
-    const n = Number(x);
-    if (!Number.isFinite(n)) return '';
-    return n.toLocaleString('it-IT', {maximumFractionDigits:d, minimumFractionDigits:d});
-  };
-  const fmtInt = (x) => {
-    const n = Number(x);
-    if (!Number.isFinite(n)) return '';
-    return n.toLocaleString('it-IT');
-  };
-  const iso = (v) => {
-    if (!v) return '';
-    const d = new Date(v);
-    if (isNaN(d.getTime())) return String(v);
-    return d.toISOString().slice(0,10);
-  };
-  const marketUrl = (slug) => slug ? `https://polymarket.com/market/${slug}` : '';
-
-  function log(msg, isErr=false){
-    const div = $('log');
-    const line = document.createElement('div');
-    line.textContent = `${new Date().toISOString().slice(11,19)}  ${msg}`;
-    if (isErr) line.style.color = 'var(--bad)';
-    div.appendChild(line);
-    div.scrollTop = div.scrollHeight;
+  if($("autoPaper").value === "1"){
+    paperAddFromSignal(s, s.price);
   }
-  function setStatus(msg, kind=null){
-    const s = $('status');
-    s.innerHTML = msg;
-    if (kind === 'ok') s.innerHTML = `<span class="ok">OK</span> ${msg}`;
-    if (kind === 'bad') s.innerHTML = `<span class="bad">ERRORE</span> ${msg}`;
-  }
+}
 
-  function getMode(){ return $('mode').value; }
-  function proxyBase(){ return ($('proxy').value || '').trim(); }
+async function pollOnce(){
+  const user = $("addr").value.trim();
+  if(!isAddr(user)) { setStatus("Inserisci un address valido 0x + 40 hex."); return; }
 
-  function parseLocaleNumber(v){
-    if (v === null || v === undefined) return NaN;
-    const s = String(v).trim().replace(',', '.');
-    return Number(s);
-  }
+  const limit = clamp(Number($("limitAct").value||120), 1, 500);
+  const days = clamp(Number($("days").value||30), 1, 365);
+  const sinceSec = Math.floor(Date.now()/1000 - days*24*3600);
 
-  function proxify(url){
-    const p = proxyBase();
-    if (!p) throw new Error('Proxy base vuoto.');
-    return p + encodeURIComponent(url);
-  }
-
-  async function fetchJson(url, timeoutMs=25000){
-    const mode = getMode();
-    const ac = new AbortController();
-    const t = setTimeout(() => ac.abort('timeout'), timeoutMs);
-
-    async function doFetch(u, label){
-      log(`GET ${label} ${u}`);
-      const res = await fetch(u, { method:'GET', headers:{'accept':'application/json'}, signal: ac.signal });
-      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-      return res.json();
-    }
-
-    try{
-      if (mode === 'direct') return await doFetch(url, '(direct)');
-      if (mode === 'proxy') return await doFetch(proxify(url), '(proxy)');
-
-      // auto: direct -> proxy fallback
-      try{
-        return await doFetch(url, '(direct)');
-      } catch (e1){
-        const p = proxyBase();
-        if (!p) throw e1;
-        log(`Direct fallita (${e1?.message||e1}). Riprovo via proxy…`, true);
-        return await doFetch(proxify(url), '(proxy-fallback)');
-      }
-    } finally {
-      clearTimeout(t);
-    }
-  }
-
-  function unwrap(data){
-    if (Array.isArray(data)) return data;
-    if (Array.isArray(data?.data)) return data.data;
-    if (Array.isArray(data?.items)) return data.items;
-    return data;
-  }
-
-  function asJsonArray(v){
-    if (Array.isArray(v)) return v;
-    if (typeof v === 'string') {
-      try {
-        const a = JSON.parse(v);
-        return Array.isArray(a) ? a : [];
-      } catch { return []; }
-    }
-    return [];
-  }
-
-  function num(v){
-    const n = (typeof v === 'string') ? parseLocaleNumber(v) : Number(v);
-    return Number.isFinite(n) ? n : null;
-  }
-
-  function firstFinite(...vals){
-    for (const v of vals){
-      const n = num(v);
-      if (n !== null) return n;
-    }
-    return null;
-  }
-
-  function getYesPrice(m){
-    const outcomes = asJsonArray(m?.outcomes);
-    const prices = asJsonArray(m?.outcomePrices);
-
-    if (outcomes.length && prices.length) {
-      const idx = outcomes.findIndex(x => String(x).toLowerCase() === 'yes');
-      if (idx >= 0) {
-        const p = num(prices[idx]);
-        if (p !== null) return p;
-      }
-    }
-
-    return firstFinite(
-      m?.lastTradePrice, m?.bestAsk, m?.bestBid,
-      m?.price, m?.lastPrice, m?.last_price, m?.yesPrice, m?.yes_price
-    );
-  }
-
-  function getLiquidity(m){
-    return firstFinite(m?.liquidityNum, m?.liquidity_num, m?.liquidity, m?.totalLiquidity, m?.total_liquidity);
-  }
-
-  function getVolume24h(m){
-    return firstFinite(m?.volume24hr, m?.volume_24h, m?.volume24h, m?.dailyVolume, m?.daily_volume);
-  }
-
-  function getEnd(m){
-    return m?.endDate || m?.end_date || m?.endTime || m?.end_time || null;
-  }
-
-  function daysUntil(dateStr){
-    if (!dateStr) return null;
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return null;
-    return (d.getTime() - Date.now()) / (1000*60*60*24);
-  }
-
-  function escapeHtml(s){
-    return String(s)
-      .replaceAll('&','&amp;')
-      .replaceAll('<','&lt;')
-      .replaceAll('>','&gt;')
-      .replaceAll('"','&quot;')
-      .replaceAll("'",'&#039;');
-  }
-
-  function downloadFile(name, text, mime='application/json'){
-    const blob = new Blob([text], {type:mime});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();}, 0);
-  }
-
-  let lastResult = null;
-  let running = false;
-
-  async function testConnection(){
-    $('test').disabled = true;
-    try{
-      setStatus('Test in corso…');
-
-      const u1 = `${BASE.gamma}/events?closed=false&limit=1&offset=0`;
-      const e = unwrap(await fetchJson(u1, 20000));
-      log(`OK Gamma events: ${Array.isArray(e)?e.length:'(obj)'}`);
-
-      const u2 = `${BASE.data}/activity?user=0x0000000000000000000000000000000000000001&limit=1&offset=0&sortBy=TIMESTAMP&sortDirection=DESC`;
-      const a = unwrap(await fetchJson(u2, 20000));
-      log(`OK Data activity: ${Array.isArray(a)?a.length:'(obj)'}`);
-
-      setStatus('Connessione OK (Gamma + Data).', 'ok');
-    } catch (err){
-      log(`Test fallito: ${err?.message||err}`, true);
-      setStatus(`Connessione KO: ${err?.message||err}`, 'bad');
-    } finally {
-      $('test').disabled = false;
-    }
-  }
-
-  async function scan(){
-    if (running) return;
-    running = true;
-    $('scan').disabled = true;
-    $('export').disabled = true;
-    $('tbl').querySelector('tbody').innerHTML = `<tr><td colspan="7" style="opacity:.65">Scansione in corso…</td></tr>`;
-
-    const cfg = {
-      mode: getMode(),
-      proxy: proxyBase() || null,
-      maxDays: clamp(parseLocaleNumber($('maxDays').value||365), 1, 3650),
-      maxRes: clamp(parseLocaleNumber($('maxRes').value||50), 10, 500),
-      maxEntry: clamp(parseLocaleNumber($('maxEntry').value||'0.10'), 0, 1),
-      minLiq: Math.max(0, parseLocaleNumber($('minLiq').value||0)),
-      minVol: Math.max(0, parseLocaleNumber($('minVol').value||0)),
-      pageLimit: clamp(parseLocaleNumber($('pageLimit').value||100), 25, 200),
-      maxPages: clamp(parseLocaleNumber($('maxPages').value||8), 1, 50),
-      tagId: $('tagId').value.trim() ? parseLocaleNumber($('tagId').value.trim()) : null,
-    };
-
-    const debug = {
-      cfg,
-      totals: { pages:0, marketsFetched:0, marketsAnalyzed:0, passed:0 },
-      filtered: { noPrice:0, noEnd:0, expired:0, far:0, price:0, liq:0, vol:0 },
-      sample: null
-    };
-
-    try{
-      $('log').innerHTML='';
-      setStatus('Scansione mercati…');
-      log(`Config: ${JSON.stringify(cfg)}`);
-
-      const all = [];
-      for (let page=0; page<cfg.maxPages; page++){
-        const offset = page*cfg.pageLimit;
-        const qs = new URLSearchParams({ closed:'false', limit:String(cfg.pageLimit), offset:String(offset) });
-        if (cfg.tagId) qs.set('tag_id', String(cfg.tagId));
-
-        const url = `${BASE.gamma}/markets?${qs.toString()}`;
-        debug.totals.pages += 1;
-        const batch = unwrap(await fetchJson(url, 25000));
-        const arr = Array.isArray(batch) ? batch : (Array.isArray(batch?.markets) ? batch.markets : []);
-        debug.totals.marketsFetched += arr.length;
-        log(`Pagina ${page+1}: ricevuti ${arr.length} markets`);
-        if (!debug.sample && arr.length) debug.sample = arr[0];
-        all.push(...arr);
-        if (arr.length < cfg.pageLimit) break;
-        await sleep(150);
-      }
-
-      const out = [];
-      for (const m of all){
-        debug.totals.marketsAnalyzed += 1;
-
-        const yes = getYesPrice(m);
-        if (yes === null){ debug.filtered.noPrice += 1; continue; }
-
-        const end = getEnd(m);
-        if (!end){ debug.filtered.noEnd += 1; continue; }
-        const d = daysUntil(end);
-        if (d === null){ debug.filtered.noEnd += 1; continue; }
-        if (d < 0){ debug.filtered.expired += 1; continue; }
-        if (d > cfg.maxDays){ debug.filtered.far += 1; continue; }
-
-        if (yes > cfg.maxEntry){ debug.filtered.price += 1; continue; }
-
-        const liq = getLiquidity(m) ?? 0;
-        if (liq < cfg.minLiq){ debug.filtered.liq += 1; continue; }
-
-        const vol = getVolume24h(m) ?? 0;
-        if (vol < cfg.minVol){ debug.filtered.vol += 1; continue; }
-
-        out.push({
-          id: m.id ?? null,
-          question: m.question ?? m.title ?? '(senza titolo)',
-          slug: m.slug ?? null,
-          yesPrice: yes,
-          liquidity: liq,
-          volume24h: vol,
-          endDate: end,
-        });
-      }
-
-      out.sort((a,b)=> (a.yesPrice-b.yesPrice) || (b.liquidity-a.liquidity));
-      const top = out.slice(0, cfg.maxRes);
-      debug.totals.passed = out.length;
-
-      const tb = $('tbl').querySelector('tbody');
-      tb.innerHTML = '';
-      if (!top.length){
-        tb.innerHTML = `<tr><td colspan="7" style="opacity:.65">Nessuna opportunità trovata con i filtri attuali.</td></tr>`;
-      } else {
-        top.forEach((x,i)=>{
-          const url = marketUrl(x.slug);
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${i+1}</td>
-            <td>${escapeHtml(x.question).slice(0,120)}</td>
-            <td>${fmt(x.yesPrice,3)}</td>
-            <td>${fmtInt(x.liquidity)}</td>
-            <td>${fmtInt(x.volume24h)}</td>
-            <td>${iso(x.endDate)}</td>
-            <td>${url ? `<a href="${url}" target="_blank" rel="noreferrer">Apri</a>` : ''}</td>
-          `;
-          tb.appendChild(tr);
-        });
-      }
-
-      lastResult = { cfg, debug, opportunities: top, fetched: debug.totals.marketsFetched };
-      $('debug').textContent = JSON.stringify(lastResult, null, 2);
-      $('export').disabled = false;
-
-      setStatus(`Completato. Analizzati ${debug.totals.marketsAnalyzed} mercati, opportunità: ${out.length} (mostro ${top.length}).`, 'ok');
-      log(`FILTRI: ${JSON.stringify(debug.filtered)}`);
-
-    } catch (err){
-      log(`ERRORE scan: ${err?.message||err}`, true);
-      setStatus(`Errore: ${err?.message||err}`, 'bad');
-      $('debug').textContent = JSON.stringify({error:String(err?.message||err)}, null, 2);
-      lastResult = null;
-    } finally {
-      running = false;
-      $('scan').disabled = false;
-    }
-  }
-
-  function reset(){
-    $('log').innerHTML='';
-    setStatus('Reset completato.');
-    $('tbl').querySelector('tbody').innerHTML = `<tr><td colspan="7" style="opacity:.65">Nessun dato.</td></tr>`;
-    $('debug').textContent = '—';
-    lastResult = null;
-    $('export').disabled = true;
-  }
-
-  $('test').addEventListener('click', testConnection);
-  $('scan').addEventListener('click', scan);
-  $('reset').addEventListener('click', reset);
-  $('export').addEventListener('click', ()=>{
-    if (!lastResult) return;
-    const fn = `polymarket_scanner_${new Date().toISOString().slice(0,10)}.json`;
-    downloadFile(fn, JSON.stringify(lastResult, null, 2));
+  const qs = new URLSearchParams({
+    user,
+    limit: String(limit),
+    offset: "0",
+    sortBy: "TIMESTAMP",
+    sortDirection: "DESC",
   });
 
-  log('Pronto. Premi “Test connessione” e poi “Scansiona mercati”.');
+  const type = ($("type").value||"").trim();
+  if(type) qs.set("type", type);
+
+  setStatus("Fetching activity…");
+  const data = await fetchJson(`${API.data}/activity?${qs.toString()}`);
+  const items = unwrap(data);
+
+  let newN = 0;
+  for(const x of items){
+    const t = Number(x.timestamp);
+    const sec = (t > 1e12) ? Math.floor(t/1000) : Math.floor(t);
+    if(sec < sinceSec) continue;
+
+    const id = mkIdx(x);
+    if(seen.has(id)) continue;
+    seen.add(id);
+    newN++;
+
+    addFeedItem(x);
+
+    const sig = isSignalTrade(x);
+    if(sig && $("autoSignals").value === "1") pushSignal(x);
+  }
+
+  $("newCount").textContent = String(newN);
+  saveAll();
+  setStatus(`OK. Nuovi: ${newN} (items: ${items.length}).`);
+}
+
+/* Buttons: live */
+$("start").addEventListener("click", async ()=>{
+  if(timer) return;
+  $("start").disabled = true; $("stop").disabled = false;
+  try{ await pollOnce(); } catch(e){ setStatus("Errore: "+e.message); }
+  const ms = clamp(Number($("interval").value||2500), 800, 60000);
+  timer = setInterval(async ()=>{
+    try{ await pollOnce(); } catch(e){ setStatus("Errore: "+e.message); }
+  }, ms);
+});
+$("stop").addEventListener("click", ()=>{
+  if(!timer) return;
+  clearInterval(timer); timer = null;
+  $("start").disabled = false; $("stop").disabled = true;
+  setStatus("Stopped.");
+});
+$("clear").addEventListener("click", ()=>{
+  $("log").innerHTML = "";
+  seen = new Set();
+  signals = [];
+  saveAll();
+  renderSignals();
+  setStatus("Feed cleared.");
+});
+
+/* -------------------- POSITIONS (Predizioni) -------------------- */
+async function fetchPositions(user, limit=100){
+  // data-api /positions: limit/offset/sortBy/sortDirection, come nello stile dello script stats.
+  const qs = new URLSearchParams({
+    user,
+    limit: String(clamp(Number(limit||100), 10, 200)),
+    offset: "0",
+    sortBy: "CASHPNL",
+    sortDirection: "DESC"
+  });
+  return unwrap(await fetchJson(`${API.data}/positions?${qs.toString()}`));
+}
+
+function isYesNo(outcome){
+  const o = String(outcome||"").toLowerCase();
+  return o==="yes" || o==="no";
+}
+
+function passesExtremes(outcome, price){
+  const o = String(outcome||"").toLowerCase();
+  const noHi = Number($("noHi").value||0.97);
+  const yesLo = Number($("yesLo").value||0.03);
+  const p = Number(price);
+  if(!Number.isFinite(p)) return false;
+  if(o==="no" && p>=noHi) return true;
+  if(o==="yes" && p<=yesLo) return true;
+  return false;
+}
+
+let lastOpenPositions = [];
+
+function renderOpenPositions(pos){
+  const tbody = $("tblOpen").querySelector("tbody");
+  tbody.innerHTML = "";
+  if(!pos?.length){
+    tbody.innerHTML = `<tr><td colspan="8" style="opacity:.6">Nessun dato</td></tr>`;
+    return;
+  }
+
+  for(const p of pos.slice(0, 120)){
+    const slug = p.slug || "";
+    const url = slug ? marketUrl(slug) : "";
+    const title = (p.title || slug || p.conditionId || "").toString();
+    const outcome = p.outcome || "";
+    const avg = Number(p.avgPrice);
+    const cur = Number(p.curPrice ?? p.currentPrice ?? p.price ?? p.cur_price);
+    const size = Number(p.size);
+    const val = Number(p.currentValue);
+    const pnl = Number(p.cashPnl);
+
+    const cid = p.conditionId || "";
+    // salva in cache il prezzo corrente osservato (utile per paper refresh)
+    if(cid && Number.isFinite(cur)){
+      cacheSet(cid, {
+        slug, title,
+        endDate: p.endDate || "",
+        outcomes: {[String(outcome).toLowerCase()]: cur}
+      });
+    }
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${fmt(title, 90)}<div class="mono muted">${fmt(slug||cid, 70)}</div></td>
+      <td>${fmt(outcome, 18)}</td>
+      <td>${Number.isFinite(avg)?fmtP(avg):"—"}</td>
+      <td>${Number.isFinite(cur)?fmtP(cur):"—"}</td>
+      <td>${Number.isFinite(size)?fmtNum(size,2):"—"}</td>
+      <td>${Number.isFinite(val)?fmtNum(val,2):"—"}</td>
+      <td class="${Number.isFinite(pnl)?(pnl>=0?"ok":"bad"):""}">${Number.isFinite(pnl)?fmtNum(pnl,2):"—"}</td>
+      <td>
+        ${url?`<a href="${url}" target="_blank" rel="noreferrer">Apri</a>`:"—"}
+        <button data-paper="1"
+          data-cid="${cid}"
+          data-slug="${slug}"
+          data-title="${encodeURIComponent(title)}"
+          data-outcome="${encodeURIComponent(outcome)}"
+          data-entry="${Number.isFinite(avg)?avg:""}"
+          data-last="${Number.isFinite(cur)?cur:""}"
+          style="margin-left:8px">Paperizza</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  tbody.querySelectorAll("button[data-paper='1']").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      $("paperConditionId").value = b.dataset.cid || "";
+      $("paperSlug").value = b.dataset.slug || "";
+      $("paperOutcome").value = decodeURIComponent(b.dataset.outcome || "Yes");
+      $("paperSide").value = "BUY";
+      const entry = b.dataset.entry || "";
+      if(entry) $("paperEntry").value = entry;
+      document.querySelector(".tab[data-tab='paper']").click();
+      // aggiungi subito trade con entry = avgPrice
+      paperAdd({
+        conditionId: b.dataset.cid || "",
+        slug: b.dataset.slug || "",
+        title: decodeURIComponent(b.dataset.title || ""),
+        outcome: decodeURIComponent(b.dataset.outcome || "Yes"),
+        side: "BUY",
+        stake: Number($("paperStake").value||25),
+        entryPrice: Number(entry || $("paperEntry").value || 0.5),
+        lastPrice: Number(b.dataset.last || null),
+      });
+    });
+  });
+}
+
+$("loadPositions").addEventListener("click", async ()=>{
+  try{
+    const user = $("addr").value.trim();
+    if(!isAddr(user)) throw new Error("Address non valido.");
+    setStatus("Scarico posizioni aperte…");
+    const limit = Number($("posLimit").value||100);
+    let pos = await fetchPositions(user, limit);
+
+    // filtri UI
+    const kw = ($("posKw").value||"").trim().toLowerCase();
+    const yesNoOnly = $("posYesNoOnly").value === "1";
+    const extremes = $("posExtremes").value === "1";
+
+    pos = pos.filter(p=>{
+      const title = String(p.title||"");
+      const slug = String(p.slug||"");
+      const outcome = String(p.outcome||"");
+      const cur = Number(p.curPrice ?? p.currentPrice ?? p.price ?? p.cur_price);
+
+      if(kw && !(title.toLowerCase().includes(kw) || slug.toLowerCase().includes(kw))) return false;
+      if(yesNoOnly && !isYesNo(outcome)) return false;
+      if(extremes && !passesExtremes(outcome, cur)) return false;
+      return true;
+    });
+
+    const sort = $("posSort").value;
+    if(sort==="CASHPNL_DESC") pos.sort((a,b)=>Number(b.cashPnl||0)-Number(a.cashPnl||0));
+    if(sort==="VALUE_DESC") pos.sort((a,b)=>Number(b.currentValue||0)-Number(a.currentValue||0));
+    if(sort==="SIZE_DESC") pos.sort((a,b)=>Number(b.size||0)-Number(a.size||0));
+
+    lastOpenPositions = pos;
+    renderOpenPositions(pos);
+    saveAll();
+    setStatus(`OK. Posizioni mostrate: ${pos.length}.`);
+  }catch(e){
+    setStatus("Errore posizioni: "+e.message);
+  }
+});
+
+$("paperizeTop").addEventListener("click", ()=>{
+  const top = (lastOpenPositions||[]).slice(0, 20);
+  if(!top.length){ alert("Carica posizioni prima."); return; }
+  for(const p of top){
+    const cid = p.conditionId || "";
+    const slug = p.slug || "";
+    const title = p.title || slug || cid;
+    const outcome = p.outcome || "Yes";
+    const entry = Number(p.avgPrice || 0.5);
+    const last = Number(p.curPrice ?? p.currentPrice ?? null);
+    paperAdd({conditionId: cid, slug, title, outcome, side:"BUY", stake:Number($("paperStake").value||25), entryPrice: entry, lastPrice: last});
+  }
+  renderPaper();
+  saveAll();
+  setStatus("Paperizzati top 20.");
+  document.querySelector(".tab[data-tab='paper']").click();
+});
+
+$("clearPositions").addEventListener("click", ()=>{
+  lastOpenPositions = [];
+  $("tblOpen").querySelector("tbody").innerHTML = `<tr><td colspan="8" style="opacity:.6">Nessun dato</td></tr>`;
+  setStatus("Posizioni cleared.");
+});
+
+/* -------------------- OPPORTUNITIES (Gamma /markets) -------------------- */
+function parseJsonMaybe(x){
+  if(Array.isArray(x)) return x;
+  if(typeof x === "string"){
+    try{ return JSON.parse(x); } catch { return null; }
+  }
+  return null;
+}
+function getYesNoFromMarket(m){
+  const outcomes = parseJsonMaybe(m.outcomes);
+  const prices = parseJsonMaybe(m.outcomePrices);
+  if(!Array.isArray(outcomes) || !Array.isArray(prices)) return {yes:null,no:null};
+  const yi = outcomes.findIndex(o=>String(o).toLowerCase()==="yes");
+  const ni = outcomes.findIndex(o=>String(o).toLowerCase()==="no");
+  const yes = (yi>=0 && Number.isFinite(Number(prices[yi]))) ? Number(prices[yi]) : null;
+  const no  = (ni>=0 && Number.isFinite(Number(prices[ni]))) ? Number(prices[ni]) : (yes!==null ? (1-yes) : null);
+  return {yes, no};
+}
+function shouldKeepOpp(m){
+  const kw = ($("kw").value||"").trim().toLowerCase();
+  if(kw){
+    const title = String(m.title || m.question || "");
+    const slug = String(m.slug || "");
+    const hay = (title+" "+slug).toLowerCase();
+    if(!hay.includes(kw)) return false;
+  }
+  const mode = $("oppMode").value;
+  const {yes, no} = getYesNoFromMarket(m);
+  const noHi = Number($("noHi").value||0.97);
+  const yesLo = Number($("yesLo").value||0.03);
+  if(mode==="NO_HI") return Number.isFinite(no) && no>=noHi;
+  if(mode==="YES_LO") return Number.isFinite(yes) && yes<=yesLo;
+  return true;
+}
+
+$("scanOpp").addEventListener("click", async ()=>{
+  try{
+    setStatus("Scanning Gamma markets…");
+    const pages = clamp(Number($("pages").value||4), 1, 25);
+    const onlyActive = $("onlyActive").value==="1";
+    const onlyOpen = $("onlyOpen").value==="1";
+
+    const tbody = $("tblOpp").querySelector("tbody");
+    tbody.innerHTML = "";
+
+    const out = [];
+    for(let p=0; p<pages; p++){
+      const qs = new URLSearchParams({limit:"100", offset:String(p*100)});
+      if(onlyActive) qs.set("active","true");
+      if(onlyOpen) qs.set("closed","false");
+
+      const data = await fetchJson(`${API.gamma}/markets?${qs.toString()}`);
+      const markets = unwrap(data);
+
+      for(const m of markets){
+        if(!shouldKeepOpp(m)) continue;
+        const {yes, no} = getYesNoFromMarket(m);
+        out.push({
+          conditionId: m.conditionId || "",
+          slug: m.slug || "",
+          title: m.title || m.question || m.slug || "",
+          yes, no,
+          endDate: m.endDate || ""
+        });
+
+        // salva in cache prezzi YES/NO se presenti
+        const cid = m.conditionId || "";
+        if(cid){
+          const outcomes = {};
+          if(Number.isFinite(yes)) outcomes["yes"] = yes;
+          if(Number.isFinite(no)) outcomes["no"] = no;
+          cacheSet(cid, {slug: m.slug||"", title: (m.title||m.question||""), endDate: (m.endDate||""), outcomes});
+        }
+      }
+    }
+
+    if(!out.length){
+      tbody.innerHTML = `<tr><td colspan="5" style="opacity:.6">Nessun risultato</td></tr>`;
+      saveAll();
+      setStatus("Nessun risultato.");
+      return;
+    }
+
+    const mode = $("oppMode").value;
+    out.sort((a,b)=>{
+      if(mode==="NO_HI") return (b.no??-1)-(a.no??-1);
+      if(mode==="YES_LO") return (a.yes??2)-(b.yes??2);
+      const ax = Math.max(a.no??0, 1-(a.yes??1));
+      const bx = Math.max(b.no??0, 1-(b.yes??1));
+      return bx-ax;
+    });
+
+    for(const r of out.slice(0, 250)){
+      const tr = document.createElement("tr");
+      const link = r.slug ? `<a href="${marketUrl(r.slug)}" target="_blank" rel="noreferrer">Apri</a>` : "—";
+      tr.innerHTML = `
+        <td>${fmt(r.title, 90)}<div class="mono muted">${fmt(r.slug||r.conditionId, 70)}</div></td>
+        <td>${fmtP(r.yes)}</td>
+        <td>${fmtP(r.no)}</td>
+        <td>${fmtDate(r.endDate)}</td>
+        <td>
+          ${link}
+          <button data-p="1" data-cid="${r.conditionId}" data-slug="${r.slug}" data-out="Yes" data-entry="${Number.isFinite(r.yes)?r.yes:""}" style="margin-left:8px">Paper YES</button>
+          <button data-p="1" data-cid="${r.conditionId}" data-slug="${r.slug}" data-out="No" data-entry="${Number.isFinite(r.no)?r.no:""}" style="margin-left:6px">Paper NO</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    tbody.querySelectorAll("button[data-p='1']").forEach(b=>{
+      b.addEventListener("click", ()=>{
+        $("paperConditionId").value = b.dataset.cid || "";
+        $("paperSlug").value = b.dataset.slug || "";
+        $("paperOutcome").value = b.dataset.out || "Yes";
+        $("paperSide").value = "BUY";
+        const entry = b.dataset.entry || "";
+        if(entry) $("paperEntry").value = entry;
+        document.querySelector(".tab[data-tab='paper']").click();
+        paperAdd({
+          conditionId: b.dataset.cid || "",
+          slug: b.dataset.slug || "",
+          title: b.dataset.slug || b.dataset.cid || "Opportunity",
+          outcome: b.dataset.out || "Yes",
+          side: "BUY",
+          stake: Number($("paperStake").value||25),
+          entryPrice: Number(entry || $("paperEntry").value || 0.5),
+          lastPrice: Number(entry || null),
+        });
+        renderPaper(); saveAll();
+      });
+    });
+
+    saveAll();
+    setStatus(`OK. Trovati: ${out.length} (mostrati max 250).`);
+  }catch(e){
+    setStatus("Errore opportunità: "+e.message);
+  }
+});
+
+$("clearOpp").addEventListener("click", ()=>{
+  $("tblOpp").querySelector("tbody").innerHTML = `<tr><td colspan="5" style="opacity:.6">Nessun dato</td></tr>`;
+  setStatus("Opportunità cleared.");
+});
+
+/* -------------------- PAPER TRADING -------------------- */
+function paperAdd(patch){
+  const p = {
+    id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())+Math.random()),
+    createdAt: Date.now(),
+    conditionId: patch.conditionId || "",
+    slug: patch.slug || "",
+    title: patch.title || patch.slug || patch.conditionId || "Paper",
+    outcome: patch.outcome || "Yes",
+    side: patch.side || "BUY",
+    stake: Number.isFinite(Number(patch.stake)) ? Number(patch.stake) : 25,
+    entryPrice: Number.isFinite(Number(patch.entryPrice)) ? Number(patch.entryPrice) : 0.5,
+    lastPrice: Number.isFinite(Number(patch.lastPrice)) ? Number(patch.lastPrice) : null,
+    lastUpdatedAt: null,
+    closed: false,
+    closedAt: null,
+    closePrice: null,
+  };
+  paper.unshift(p);
+}
+
+function paperAddFromSignal(s, entryPrice){
+  paperAdd({
+    conditionId: s.conditionId || "",
+    slug: s.slug || "",
+    title: s.title || s.slug || s.conditionId || "Signal",
+    outcome: s.outcome || "Yes",
+    side: s.side || "BUY",
+    stake: Number($("paperStake").value || 25),
+    entryPrice: Number(entryPrice),
+    lastPrice: cacheGetPrice(s.conditionId, s.outcome),
+  });
+  renderPaper(); saveAll();
+}
+function paperAddFromTrade(x){
+  const entry = Number(x.price);
+  paperAddFromSignal({
+    conditionId: x.conditionId || "",
+    slug: x.slug || "",
+    title: x.title || "",
+    outcome: x.outcome || "",
+    side: x.side || "BUY",
+  }, entry);
+}
+
+function pnlFrom(p){
+  const entry = Number(p.entryPrice);
+  const last = Number(p.closed ? p.closePrice : p.lastPrice);
+  const stake = Number(p.stake);
+  if(!Number.isFinite(entry) || entry<=0 || !Number.isFinite(last) || stake<=0) return null;
+
+  const shares = stake / entry;
+  const value = shares * last;
+  let pnl = value - stake;
+  if((p.side||"BUY").toUpperCase() === "SELL") pnl = -pnl;
+  return pnl;
+}
+
+function renderPaper(){
+  const tbody = $("tblPaper").querySelector("tbody");
+  tbody.innerHTML = "";
+  if(!paper.length){
+    tbody.innerHTML = `<tr><td colspan="7" style="opacity:.6">Nessun paper trade</td></tr>`;
+    return;
+  }
+  for(const p of paper.slice(0, 250)){
+    const pnl = pnlFrom(p);
+    const cls = (pnl===null) ? "" : (pnl>=0 ? "ok" : "bad");
+    const url = p.slug ? marketUrl(p.slug) : "";
+    const title = fmt(p.title || p.slug || p.conditionId || "—", 80);
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>
+        ${title}
+        <div class="mono muted">${fmt(p.slug||p.conditionId, 70)}</div>
+      </td>
+      <td>${fmt(p.outcome, 20)} <span class="pill">${fmt(p.side, 10)}</span></td>
+      <td>${fmtP(p.entryPrice)}</td>
+      <td>${p.closed ? `<span class="pill">CLOSED</span> ${fmtP(p.closePrice)}` : fmtP(p.lastPrice)}</td>
+      <td>${Number(p.stake||0).toFixed(2)}</td>
+      <td class="${cls}">${pnl===null ? "—" : pnl.toFixed(2)}</td>
+      <td>
+        ${url ? `<a href="${url}" target="_blank" rel="noreferrer">Apri</a>` : "—"}
+        ${p.closed ? "" : `<button data-close="${p.id}" style="margin-left:8px">Close @last</button>`}
+        <button data-del="${p.id}" style="margin-left:6px">Del</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  tbody.querySelectorAll("button[data-close]").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const id = b.dataset.close;
+      const p = paper.find(x=>x.id===id);
+      if(!p) return;
+      if(!Number.isFinite(Number(p.lastPrice))) return alert("Nessun lastPrice: fai refresh prices o aggiungi da posizioni/opportunità.");
+      p.closed = true;
+      p.closedAt = Date.now();
+      p.closePrice = Number(p.lastPrice);
+      saveAll();
+      renderPaper();
+    });
+  });
+
+  tbody.querySelectorAll("button[data-del]").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const id = b.dataset.del;
+      paper = paper.filter(x=>x.id!==id);
+      saveAll();
+      renderPaper();
+    });
+  });
+}
+
+$("paperAdd").addEventListener("click", ()=>{
+  paperAdd({
+    conditionId: $("paperConditionId").value.trim(),
+    slug: $("paperSlug").value.trim(),
+    title: $("paperSlug").value.trim() || $("paperConditionId").value.trim() || "Manual",
+    outcome: $("paperOutcome").value.trim() || "Yes",
+    side: $("paperSide").value,
+    stake: Number($("paperStake").value || 25),
+    entryPrice: Number($("paperEntry").value || 0.5),
+    lastPrice: cacheGetPrice($("paperConditionId").value.trim(), $("paperOutcome").value.trim()),
+  });
+  saveAll();
+  renderPaper();
+  setStatus("Paper trade aggiunto.");
+});
+
+$("paperRefresh").addEventListener("click", ()=>{
+  // refresh usa cache (posizioni/opportunità): aggiorna lastPrice se disponibile
+  let n=0;
+  for(const p of paper){
+    if(p.closed) continue;
+    const cid = (p.conditionId||"").trim();
+    if(!cid) continue;
+    const pr = cacheGetPrice(cid, p.outcome);
+    if(Number.isFinite(pr)){
+      p.lastPrice = pr;
+      p.lastUpdatedAt = Date.now();
+      n++;
+    }
+  }
+  saveAll();
+  renderPaper();
+  setStatus(`Paper refresh: aggiornati ${n}.`);
+});
+
+$("paperClear").addEventListener("click", ()=>{
+  paper = [];
+  saveAll();
+  renderPaper();
+  setStatus("Paper reset.");
+});
+
+/* -------------------- STATS -------------------- */
+async function fetchActivityFiltered(user, limitAct, sinceSec){
+  const qs = new URLSearchParams({user, limit:String(limitAct), offset:"0", sortBy:"TIMESTAMP", sortDirection:"DESC"});
+  const type = ($("type").value||"").trim();
+  if(type) qs.set("type", type);
+  const items = unwrap(await fetchJson(`${API.data}/activity?${qs.toString()}`));
+  return items.filter(x=>{
+    const t = Number(x.timestamp);
+    const sec = (t > 1e12) ? Math.floor(t/1000) : Math.floor(t);
+    return sec >= sinceSec;
+  });
+}
+async function fetchClosed(user, limitClosed, sinceSec){
+  const qs = new URLSearchParams({user, limit:String(limitClosed), offset:"0", sortBy:"TIMESTAMP", sortDirection:"DESC"});
+  const items = unwrap(await fetchJson(`${API.data}/closed-positions?${qs.toString()}`));
+  return items.filter(x=>{
+    const t = Number(x.timestamp);
+    const sec = (t > 1e12) ? Math.floor(t/1000) : Math.floor(t);
+    return sec >= sinceSec;
+  });
+}
+function renderTopMarkets(trades){
+  const tbody = $("tblTop").querySelector("tbody");
+  tbody.innerHTML = "";
+  const map = new Map();
+  for(const t of trades){
+    const key = t.slug || t.conditionId || "unknown";
+    const cur = map.get(key) || {title: t.title || t.slug || key, slug: t.slug || "", n:0, usdc:0};
+    cur.n += 1;
+    cur.usdc += Number(t.usdcSize||0);
+    map.set(key, cur);
+  }
+  const top = Array.from(map.values()).sort((a,b)=>b.usdc-a.usdc).slice(0,30);
+  if(!top.length){
+    tbody.innerHTML = `<tr><td colspan="4" style="opacity:.6">Nessun dato</td></tr>`;
+    return;
+  }
+  for(const m of top){
+    const url = marketUrl(m.slug);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${fmt(m.title, 90)}</td>
+      <td>${fmtInt(m.n)}</td>
+      <td>${fmtNum(m.usdc, 2)}</td>
+      <td>${url?`<a href="${url}" target="_blank" rel="noreferrer">Apri</a>`:"—"}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+$("runStats").addEventListener("click", async ()=>{
+  try{
+    const user = $("addr").value.trim();
+    if(!isAddr(user)) throw new Error("Address non valido.");
+    const days = clamp(Number($("days").value||30), 1, 365);
+    const limitAct = clamp(Number($("limitAct").value||120), 1, 500);
+    const limitClosed = clamp(Number($("limitClosed").value||50), 10, 50);
+    const sinceSec = Math.floor(Date.now()/1000 - days*24*3600);
+
+    setStatus("Stats: scarico activity…");
+    const activity = await fetchActivityFiltered(user, limitAct, sinceSec);
+    const trades = activity.filter(x=>x.type==="TRADE");
+    const vol = trades.reduce((a,x)=>a+Number(x.usdcSize||0),0);
+    const avg = trades.length ? vol/trades.length : 0;
+
+    setStatus("Stats: scarico positions…");
+    const openPos = await fetchPositions(user, Number($("posLimit").value||100));
+    const openVal = openPos.reduce((a,x)=>a+Number(x.currentValue||0),0);
+
+    setStatus("Stats: scarico closed…");
+    const closedPos = await fetchClosed(user, limitClosed, sinceSec);
+    const wins = closedPos.filter(x=>Number(x.realizedPnl||0)>0).length;
+    const losses = closedPos.filter(x=>Number(x.realizedPnl||0)<0).length;
+
+    $("cevents").textContent = fmtInt(activity.length);
+    $("ctrades").textContent = fmtInt(trades.length);
+    $("cvol").textContent = fmtNum(vol,2);
+    $("cavg").textContent = fmtNum(avg,2);
+    $("copen").textContent = fmtInt(openPos.length);
+    $("copenval").textContent = fmtNum(openVal,2);
+    $("cclosed").textContent = fmtInt(closedPos.length);
+    $("cwinloss").textContent = `${fmtInt(wins)} / ${fmtInt(losses)}`;
+
+    renderTopMarkets(trades);
+
+    saveAll();
+    setStatus("Stats OK.");
+  }catch(e){
+    setStatus("Stats errore: " + e.message);
+  }
+});
+
+$("clearStats").addEventListener("click", ()=>{
+  ["cevents","ctrades","cvol","cavg","copen","copenval","cclosed","cwinloss"].forEach(id=>$(id).textContent="-");
+  $("tblTop").querySelector("tbody").innerHTML = `<tr><td colspan="4" style="opacity:.6">Nessun dato</td></tr>`;
+  setStatus("Stats cleared.");
+});
+
+/* -------------------- EXPORT / IMPORT -------------------- */
+$("exportAll").addEventListener("click", ()=>{
+  const payload = {
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    addr: $("addr").value.trim(),
+    seen: Array.from(seen),
+    signals,
+    paper,
+    cache,
+  };
+  const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `pm-suite-${payload.addr.slice(0,6)}-${Date.now()}.json`;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  setStatus("Export JSON salvato.");
+});
+
+$("importAllBtn").addEventListener("click", ()=> $("importAllFile").click());
+$("importAllFile").addEventListener("change", async (ev)=>{
+  const f = ev.target.files?.[0];
+  if(!f) return;
+  try{
+    const txt = await f.text();
+    const payload = JSON.parse(txt);
+    if(payload?.seen) seen = new Set(payload.seen);
+    if(Array.isArray(payload?.signals)) signals = payload.signals;
+    if(Array.isArray(payload?.paper)) paper = payload.paper;
+    if(payload?.cache && typeof payload.cache === "object") cache = payload.cache;
+
+    saveAll();
+    renderSignals();
+    renderPaper();
+    setStatus("Import OK.");
+  }catch(e){
+    setStatus("Import errore: " + e.message);
+  }finally{
+    $("importAllFile").value = "";
+  }
+});
+
+/* -------------------- INIT -------------------- */
+saveAll();
+renderSignals();
+renderPaper();
 </script>
 </body>
 </html>
